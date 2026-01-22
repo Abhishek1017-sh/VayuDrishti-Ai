@@ -120,7 +120,7 @@ npm install
 cd backend
 npm run dev
 ```
-Server will run on `http://localhost:5000`
+Server will run on `http://localhost:9000`
 
 2. **Start the Frontend Development Server**
 ```bash
@@ -138,7 +138,7 @@ Open your browser and navigate to `http://localhost:3000`
 
 ### Base URL
 ```
-http://localhost:5000/api
+http://localhost:9000/api
 ```
 
 ### Endpoints
