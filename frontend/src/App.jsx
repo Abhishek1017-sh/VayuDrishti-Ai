@@ -5,7 +5,6 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Analytics from './pages/Analytics';
 import Alerts from './pages/Alerts';
-import Settings from './pages/Settings';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -39,10 +38,9 @@ function App() {
             isAuthenticated ? (
               <Layout userRole={userRole} onLogout={handleLogout}>
                 <Routes>
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/analytics" element={<Analytics />} />
-                  <Route path="/alerts" element={<Alerts />} />
-                  <Route path="/settings" element={<Settings />} />
+                  <Route path="/dashboard" element={<Dashboard userRole={userRole} />} />
+                  <Route path="/analytics" element={<Analytics userRole={userRole} />} />
+                  <Route path="/alerts" element={<Alerts userRole={userRole} />} />
                   <Route path="/" element={<Navigate to="/dashboard" />} />
                 </Routes>
               </Layout>

@@ -4,7 +4,6 @@ import {
   LayoutDashboard, 
   BarChart3, 
   AlertTriangle, 
-  Settings, 
   LogOut,
   Wind,
   Moon,
@@ -40,7 +39,6 @@ function Layout({ children, userRole, onLogout }) {
     { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/analytics', label: 'Analytics', icon: BarChart3 },
     { path: '/alerts', label: 'Alerts', icon: AlertTriangle },
-    { path: '/settings', label: 'Settings', icon: Settings },
   ];
 
   return (

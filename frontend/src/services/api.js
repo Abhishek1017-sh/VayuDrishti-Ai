@@ -80,15 +80,57 @@ export const dashboardAPI = {
   // Get complete dashboard data
   getData: () => api.get('/dashboard'),
   
+  // Get admin dashboard data (all sensors and system-wide stats)
+  getAdminData: () => api.get('/dashboard/admin'),
+  
+  // Get industry dashboard data (facility-specific)
+  getIndustryData: (facilityId) => api.get(`/dashboard/industry?facilityId=${facilityId}`),
+  
+  // Get home dashboard data (single device)
+  getHomeData: (deviceId) => api.get(`/dashboard/home?deviceId=${deviceId}`),
+  
   // Get analytics
   getAnalytics: (period = '24h') => api.get(`/dashboard/analytics?period=${period}`),
+};
+
+/**
+ * Compliance APIs (for Industry users)
+ */
+export const complianceAPI = {
+  // Get compliance status
+  getStatus: (facilityId) => api.get(`/compliance/status?facilityId=${facilityId}`),
+  
+  // Get compliance score
+  getScore: (facilityId) => api.get(`/compliance/score?facilityId=${facilityId}`),
+  
+  // Generate compliance report
+  generateReport: (facilityId, format = 'pdf') => 
+    api.post(`/compliance/report`, { facilityId, format }),
+  
+  // Get compliance history
+  getHistory: (facilityId, days = 30) => 
+    api.get(`/compliance/history?facilityId=${facilityId}&days=${days}`),
+};
+
+/**
+ * Recommendations APIs (for Home users)
+ */
+export const recommendationsAPI = {
+  // Get health recommendations based on AQI
+  getHealthTips: (aqi) => api.get(`/recommendations/health?aqi=${aqi}`),
+  
+  // Get activity recommendations
+  getActivityRecommendations: (aqi) => api.get(`/recommendations/activities?aqi=${aqi}`),
+  
+  // Get preventive measures
+  getPreventiveMeasures: (aqi) => api.get(`/recommendations/measures?aqi=${aqi}`),
 };
 
 /**
  * Alert APIs
  */
 export const alertAPI = {
-  // Get all alerts
+  // Get all alerts (Admin)
   getAll: (params = {}) => {
     const queryParams = new URLSearchParams(params).toString();
     return api.get(`/alerts?${queryParams}`);
@@ -97,9 +139,44 @@ export const alertAPI = {
   // Get active alerts
   getActive: () => api.get('/alerts/active'),
   
+  // Get facility alerts (Industry)
+  getFacility: (facilityId, params = {}) => {
+    const queryParams = new URLSearchParams(params).toString();
+    return api.get(`/alerts/facility/${facilityId}?${queryParams}`);
+  },
+  
+  // Get device alerts (Home)
+  getDevice: (deviceId, params = {}) => {
+    const queryParams = new URLSearchParams(params).toString();
+    return api.get(`/alerts/device/${deviceId}?${queryParams}`);
+  },
+  
   // Acknowledge alert
-  acknowledge: (alertId, acknowledgedBy) => 
-    api.post('/alerts/acknowledge', { alertId, acknowledgedBy }),
+  acknowledge: (alertId, acknowledgedBy, notes = '') => 
+    api.post(`/alerts/${alertId}/acknowledge`, { acknowledgedBy, notes }),
+  
+  // Resolve alert
+  resolve: (alertId, resolvedBy, notes = '') => 
+    api.post(`/alerts/${alertId}/resolve`, { resolvedBy, notes }),
+  
+  // Delete alert (Admin)
+  delete: (alertId) => api.delete(`/alerts/${alertId}`),
+  
+  // Create alert from sensor data
+  create: (alertData) => api.post('/alerts', alertData),
+  
+  // Control relay (LED, Fan, Pump)
+  relayControl: (deviceId, relay, state, duration = null) => 
+    api.post(`/alerts/device/${deviceId}/control`, { relay, state, duration }),
+  
+  // Get device status
+  getDeviceStatus: (deviceId) => api.get(`/alerts/device/${deviceId}/status`),
+  
+  // Get automation logs
+  getAutomationLogs: (params = {}) => {
+    const queryParams = new URLSearchParams(params).toString();
+    return api.get(`/alerts/automation/logs?${queryParams}`);
+  },
 };
 
 export default api;

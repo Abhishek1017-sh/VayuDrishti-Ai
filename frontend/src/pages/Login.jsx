@@ -142,10 +142,6 @@ function Login({ onLogin }) {
           >
             {selectedRole ? 'Continue to Dashboard' : 'Select a role to continue'}
           </motion.button>
-
-          <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-6">
-            Demo Mode - No authentication required
-          </p>
         </motion.div>
 
         {/* Features */}

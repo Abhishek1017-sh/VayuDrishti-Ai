@@ -43,7 +43,7 @@ function Analytics() {
   };
 
   const formatChartData = (data) => {
-    return data.map(item => ({
+    return [...data].reverse().map(item => ({
       time: new Date(item.timestamp).toLocaleTimeString('en-US', { 
         hour: '2-digit', 
         minute: '2-digit' 
