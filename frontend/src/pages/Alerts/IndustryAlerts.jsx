@@ -13,7 +13,8 @@ const IndustryAlerts = ({ facilityId = 'FACILITY_001' }) => {
     severity: [],
     status: [],
     dateRange: 'all',
-    deviceId: ''
+    device: '',
+    category: ''
   });
   const [notes, setNotes] = useState({});
   const [loading, setLoading] = useState(true);
@@ -31,6 +32,7 @@ const IndustryAlerts = ({ facilityId = 'FACILITY_001' }) => {
       severity: 'critical',
       status: 'active',
       deviceId: 'ESP32_001',
+      category: 'AIR_QUALITY',
       timestamp: new Date(Date.now() - 5 * 60000),
       readings: {
         smoke: 450,
@@ -49,6 +51,7 @@ const IndustryAlerts = ({ facilityId = 'FACILITY_001' }) => {
       severity: 'warning',
       status: 'acknowledged',
       deviceId: 'ESP32_002',
+      category: 'DEVICE',
       timestamp: new Date(Date.now() - 30 * 60000),
       readings: {
         smoke: 280,
@@ -58,7 +61,7 @@ const IndustryAlerts = ({ facilityId = 'FACILITY_001' }) => {
       automationActions: ['FAN_ON'],
       message: 'Temperature increased to unsafe levels.',
       facilityId: 'FACILITY_001',
-      complianceImpact: 'Equipment temperature standard',
+      complianceImpact: 'Equipment EXCEED temperature standard',
       responseTime: 45
     },
     {
@@ -67,6 +70,7 @@ const IndustryAlerts = ({ facilityId = 'FACILITY_001' }) => {
       severity: 'warning',
       status: 'active',
       deviceId: 'ESP32_001',
+      category: 'AIR_QUALITY',
       timestamp: new Date(Date.now() - 2 * 3600000),
       readings: {
         smoke: 320,
@@ -76,7 +80,7 @@ const IndustryAlerts = ({ facilityId = 'FACILITY_001' }) => {
       automationActions: [],
       message: 'Smoke levels approaching regulatory limits.',
       facilityId: 'FACILITY_001',
-      complianceImpact: 'EPA limit threshold risk',
+      complianceImpact: 'EPA limit ACTIVE',
       responseTime: null
     }
   ];
@@ -110,7 +114,10 @@ const IndustryAlerts = ({ facilityId = 'FACILITY_001' }) => {
       if (filters.status.length > 0 && !filters.status.includes(alert.status)) {
         return false;
       }
-      if (filters.deviceId && !alert.deviceId.includes(filters.deviceId)) {
+      if (filters.category && alert.category !== filters.category) {
+        return false;
+      }
+      if (filters.device && !alert.deviceId.includes(filters.device)) {
         return false;
       }
       // Date range filtering logic
@@ -251,7 +258,14 @@ const IndustryAlerts = ({ facilityId = 'FACILITY_001' }) => {
         <div className="mb-4">
           <AlertFilter
             filters={filters}
-            onFiltersChange={setFilters}
+            onFilterChange={setFilters}
+            onReset={() => setFilters({
+              severity: [],
+              status: [],
+              dateRange: 'all',
+              device: '',
+              category: ''
+            })}
           />
         </div>
 

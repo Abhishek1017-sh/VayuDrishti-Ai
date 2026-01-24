@@ -21,11 +21,13 @@ const connectDB = async () => {
     });
 
     mongoose.connection.on('disconnected', () => {
-      console.log('⚠️  MongoDB disconnected');
+      console.log('⚠️  MongoDB disconnected (but continuing...)');
+      // DON'T exit - this happens during errors
     });
 
     // Graceful shutdown
     process.on('SIGINT', async () => {
+      console.log('Received SIGINT, closing MongoDB...');
       await mongoose.connection.close();
       console.log('MongoDB connection closed');
       process.exit(0);

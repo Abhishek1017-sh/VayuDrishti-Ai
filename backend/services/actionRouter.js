@@ -4,10 +4,12 @@
  * Routes ML classification decisions to appropriate automation actions.
  * Implements safety-first logic:
  * - FIRE: Emergency alerts, fire station notification, NO drone/sprinklers
- * - POLLUTION: Drone activation, sprinklers, ventilation
+ * - POLLUTION: Drone activation, sprinklers (if water available), ventilation
+ * - Water Safety: Check water tank status before sprinkler activation
  */
 
 const MLService = require('./mlService');
+const waterMonitorService = require('./waterMonitorService');
 
 class ActionRouter {
   /**
@@ -391,16 +393,48 @@ class ActionRouter {
 
   /**
    * Activate sprinkler system
+   * NOW WITH WATER SAFETY CHECK
    * @private
    */
   static async _activateSprinklers(deviceId) {
-    // TODO: Integrate with sprinkler controller
-    console.log(`💦 Activating sprinklers for device ${deviceId}`);
-    
-    return {
-      success: true,
-      duration: 180 // seconds
-    };
+    try {
+      // SAFETY CHECK: Verify water availability before activation
+      const waterCheck = await waterMonitorService.canActivateSprinklers(deviceId);
+
+      if (!waterCheck.allowed) {
+        console.log(`💦❌ Sprinkler activation BLOCKED for device ${deviceId}: ${waterCheck.reason}`);
+        
+        return {
+          success: false,
+          blocked: true,
+          reason: waterCheck.reason,
+          message: 'Sprinkler activation prevented due to water shortage'
+        };
+      }
+
+      // Water available - proceed with activation
+      console.log(`💦✅ Activating sprinklers for device ${deviceId} - Water available`);
+      
+      // TODO: Integrate with sprinkler controller hardware
+      // Send command to ESP32 to turn pump relay ON
+      
+      return {
+        success: true,
+        duration: 180, // seconds
+        waterStatus: 'available'
+      };
+
+    } catch (error) {
+      console.error(`Error activating sprinklers for ${deviceId}:`, error);
+      
+      // FAIL-SAFE: If water check fails, allow activation (system availability priority)
+      return {
+        success: true,
+        duration: 180,
+        waterStatus: 'unknown',
+        warning: 'Water check failed - proceeding with fail-safe activation'
+      };
+    }
   }
 
   /**

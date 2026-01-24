@@ -179,4 +179,83 @@ export const alertAPI = {
   },
 };
 
+/**
+ * Water Tank APIs
+ */
+export const waterTankAPI = {
+  // Get all water tanks
+  getAll: (params = {}) => {
+    const queryParams = new URLSearchParams(params).toString();
+    return api.get(`/water-tanks?${queryParams}`);
+  },
+
+  // Get specific tank by ID
+  getById: (tankId) => api.get(`/water-tanks/${tankId}`),
+
+  // Update water level (from sensor)
+  updateLevel: (data) => api.post('/water-tanks/level', data),
+
+  // Create new water tank (Admin)
+  create: (tankData) => api.post('/water-tanks', tankData),
+
+  // Update tank configuration
+  update: (tankId, updates) => api.put(`/water-tanks/${tankId}`, updates),
+
+  // Delete tank
+  delete: (tankId) => api.delete(`/water-tanks/${tankId}`),
+
+  // Check sprinkler availability for a tank
+  getSprinklerStatus: (tankId) => api.get(`/water-tanks/${tankId}/sprinkler-status`),
+
+  // Acknowledge municipality refill
+  acknowledgeRefill: (tankId, data) => 
+    api.post(`/water-tanks/${tankId}/refill-acknowledge`, data),
+
+  // Get tank alerts history
+  getAlerts: (tankId, params = {}) => {
+    const queryParams = new URLSearchParams(params).toString();
+    return api.get(`/water-tanks/${tankId}/alerts?${queryParams}`);
+  },
+
+  // Get tank statistics
+  getStats: (tankId, period = '24h') => 
+    api.get(`/water-tanks/${tankId}/stats?period=${period}`),
+};
+
+/**
+ * Industry APIs
+ */
+export const industryAPI = {
+  // Get industry dashboard
+  getDashboard: (facilityId) => api.get(`/industry/dashboard/${facilityId}`),
+  
+  // Get compliance report
+  getComplianceReport: (facilityId, startDate, endDate) => {
+    const params = new URLSearchParams({ startDate, endDate }).toString();
+    return api.get(`/industry/compliance/${facilityId}?${params}`);
+  },
+  
+  // Get production correlation
+  getProductionCorrelation: (facilityId, date) => {
+    const params = new URLSearchParams({ date }).toString();
+    return api.get(`/industry/production-correlation/${facilityId}?${params}`);
+  },
+};
+
+/**
+ * Home APIs
+ */
+export const homeAPI = {
+  // Get home dashboard
+  getDashboard: (homeId) => api.get(`/home/dashboard/${homeId}`),
+  
+  // Get room history
+  getRoomHistory: (roomId, hours = 24) => 
+    api.get(`/home/room/${roomId}/history?hours=${hours}`),
+  
+  // Control room device
+  controlDevice: (roomId, action, relayType) => 
+    api.post(`/home/room/${roomId}/control`, { action, relayType }),
+};
+
 export default api;

@@ -25,6 +25,15 @@ const DeviceSchema = new mongoose.Schema({
     required: true,
     index: true
   },
+  zone: {
+    type: String,
+    index: true,
+    comment: 'Zone identifier for grouping devices and water tank association'
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  },
   online: {
     type: Boolean,
     default: false
@@ -73,6 +82,24 @@ const DeviceSchema = new mongoose.Schema({
   lastRelayControlType: {
     type: String,
     enum: ['LED', 'FAN', 'PUMP']
+  },
+  // Water Resource Restriction
+  waterRestriction: {
+    type: Boolean,
+    default: false,
+    comment: 'True if sprinkler/pump disabled due to water shortage'
+  },
+  waterRestrictionReason: {
+    type: String,
+    comment: 'Reason for water restriction (e.g., tank ID and status)'
+  },
+  waterRestrictionSince: {
+    type: Date,
+    comment: 'When water restriction was applied'
+  },
+  lastRelayUpdate: {
+    type: Date,
+    comment: 'Last time relay state was modified'
   },
   pumpDuration: {
     type: Number,

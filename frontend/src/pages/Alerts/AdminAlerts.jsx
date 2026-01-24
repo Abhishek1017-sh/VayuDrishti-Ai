@@ -1,27 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Settings, Download, AlertCircle, CheckCircle2, Clock, Zap, Smartphone, MapPin, Activity, BarChart3, AlertTriangle, CheckCircle, XCircle, Siren, Search } from 'lucide-react';
+import { Plus, Settings, Download, AlertCircle, CheckCircle2, Clock, Zap, Smartphone, MapPin, Activity, BarChart3, AlertTriangle, CheckCircle, XCircle, Siren, Search, Droplets, RefreshCw } from 'lucide-react';
 import AlertCard from '../../components/Alerts/AlertCard';
 import AlertFilter from '../../components/Alerts/AlertFilter';
 import AlertTable from '../../components/Alerts/AlertTable';
 import AlertDetailsModal from '../../components/Alerts/AlertDetailsModal';
 import DeviceStatusBadge from '../../components/Alerts/DeviceStatusBadge';
 import RulesModal from '../../components/Alerts/RulesModal';
-import { alertAPI } from '../../services/api';
+import WaterTankWidget from '../../components/WaterTank/WaterTankWidget';
+import { alertAPI, waterTankAPI } from '../../services/api';
 
 const AdminAlerts = () => {
   const [alerts, setAlerts] = useState([]);
   const [devices, setDevices] = useState([]);
+  const [waterTanks, setWaterTanks] = useState([]);
   const [selectedAlert, setSelectedAlert] = useState(null);
   const [filters, setFilters] = useState({
     severity: [],
     status: [],
     dateRange: 'all',
-    device: ''
+    device: '',
+    category: ''
   });
   const [selectedAlerts, setSelectedAlerts] = useState(new Set());
   const [viewMode, setViewMode] = useState('cards'); // 'cards' or 'table'
   const [loading, setLoading] = useState(true);
+  const [waterTanksLoading, setWaterTanksLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [showRulesModal, setShowRulesModal] = useState(false);
   const [stats, setStats] = useState({
     critical: 0,
@@ -112,6 +117,57 @@ const AdminAlerts = () => {
       automationActions: ['LED_ALERT_ON', 'FAN_ON'],
       message: 'Previous smoke alert has been resolved.',
       facilityId: 'FACILITY_001'
+    },
+    {
+      id: 'alert_006',
+      type: 'Water Critical',
+      severity: 'critical',
+      status: 'active',
+      category: 'WATER_RESOURCE',
+      subcategory: 'WATER_CRITICAL',
+      deviceId: 'ESP32_TANK_02',
+      timestamp: new Date(Date.now() - 30 * 60000),
+      message: 'Water tank TANK_002 has dropped to critical level (18%). Municipality notified and sprinklers disabled.',
+      resourceData: {
+        tankId: 'TANK_002',
+        waterLevel: 18,
+        previousLevel: 25,
+        municipalityStatus: {
+          notified: true,
+          notifiedAt: new Date(Date.now() - 30 * 60000),
+          acknowledgedBy: null
+        },
+        sprinklerStatus: {
+          wasDisabled: true,
+          disabledAt: new Date(Date.now() - 30 * 60000),
+          affectedDeviceCount: 5,
+          wasReenabled: false
+        }
+      },
+      facilityId: 'FACILITY_001'
+    },
+    {
+      id: 'alert_007',
+      type: 'Water Low',
+      severity: 'warning',
+      status: 'active',
+      category: 'WATER_RESOURCE',
+      subcategory: 'WATER_LOW',
+      deviceId: 'ESP32_TANK_03',
+      timestamp: new Date(Date.now() - 2 * 3600000),
+      message: 'Water tank TANK_003 level decreased to 35%. Monitor for further depletion.',
+      resourceData: {
+        tankId: 'TANK_003',
+        waterLevel: 35,
+        previousLevel: 45,
+        municipalityStatus: {
+          notified: false
+        },
+        sprinklerStatus: {
+          wasDisabled: false
+        }
+      },
+      facilityId: 'FACILITY_002'
     }
   ];
 
@@ -157,15 +213,154 @@ const AdminAlerts = () => {
     }
   ];
 
-  useEffect(() => {
+  // Mock water tanks data
+  const mockWaterTanks = [
+    {
+      tankId: 'TANK_001',
+      zone: 'Zone A',
+      currentLevel: 85,
+      status: 'NORMAL',
+      capacity: 50000,
+      location: {
+        address: 'Sector 12, Delhi',
+        lat: 28.6139,
+        lng: 77.209
+      },
+      municipality: {
+        name: 'Delhi Municipal Corporation - Zone A',
+        contact: {
+          phone: '+91-11-2652-3456',
+          email: 'water.zonea@dmc.gov.in'
+        },
+        lastNotified: null
+      },
+      sprinklersDisabled: false,
+      sensorDeviceId: 'ESP32_TANK_01',
+      lastUpdateTime: new Date(Date.now() - 10 * 60000)
+    },
+    {
+      tankId: 'TANK_002',
+      zone: 'Zone B',
+      currentLevel: 18,
+      status: 'CRITICAL',
+      capacity: 75000,
+      location: {
+        address: 'Sector 18, Delhi',
+        lat: 28.6292,
+        lng: 77.2337
+      },
+      municipality: {
+        name: 'Delhi Municipal Corporation - Zone B',
+        contact: {
+          phone: '+91-11-2652-7890',
+          email: 'water.zoneb@dmc.gov.in'
+        },
+        lastNotified: new Date(Date.now() - 30 * 60000)
+      },
+      sprinklersDisabled: true,
+      affectedDevices: 5,
+      sensorDeviceId: 'ESP32_TANK_02',
+      lastUpdateTime: new Date(Date.now() - 5 * 60000)
+    },
+    {
+      tankId: 'TANK_003',
+      zone: 'Industrial Zone',
+      currentLevel: 45,
+      status: 'NORMAL',
+      capacity: 100000,
+      location: {
+        address: 'Industrial Area Phase 2',
+        lat: 28.4595,
+        lng: 77.0266
+      },
+      municipality: {
+        name: 'Industrial Development Authority',
+        contact: {
+          phone: '+91-124-2345-678',
+          email: 'water.industrial@ida.gov.in'
+        },
+        lastNotified: null
+      },
+      sprinklersDisabled: false,
+      sensorDeviceId: 'ESP32_TANK_03',
+      lastUpdateTime: new Date(Date.now() - 2 * 60000)
+    }
+  ];
+
+  // Fetch data from API
+  const fetchData = async () => {
     setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
+    setError(null);
+    
+    try {
+      // Fetch alerts, devices, and water tanks in parallel
+      const [alertsRes, waterTanksRes] = await Promise.all([
+        alertAPI.getAll().catch(err => {
+          console.warn('Failed to fetch alerts from API, using mock data:', err);
+          return { data: { success: true, data: mockAlerts } };
+        }),
+        waterTankAPI.getAll().catch(err => {
+          console.warn('Failed to fetch water tanks from API, using mock data:', err);
+          return { data: { success: true, data: mockWaterTanks } };
+        })
+      ]);
+
+      // Process alerts - transform MongoDB _id to id for React keys
+      const alertsData = alertsRes.data?.data || alertsRes.data || mockAlerts;
+      const processedAlerts = (Array.isArray(alertsData) ? alertsData : mockAlerts).map(alert => ({
+        ...alert,
+        id: alert.id || alert._id // Use existing id or MongoDB _id
+      }));
+      setAlerts(processedAlerts);
+      
+      // Process water tanks - ensure tankId is present for React keys
+      const tanksData = waterTanksRes.data?.data || waterTanksRes.data || mockWaterTanks;
+      setWaterTanks(Array.isArray(tanksData) ? tanksData : mockWaterTanks);
+      
+      // Use mock devices (no device API yet)
+      setDevices(mockDevices);
+      
+      // Update stats with processed alerts
+      updateStats(processedAlerts);
+      
+    } catch (err) {
+      console.error('Error fetching data:', err);
+      setError('Failed to load data. Using offline mode.');
+      
+      // Fallback to mock data
       setAlerts(mockAlerts);
       setDevices(mockDevices);
+      setWaterTanks(mockWaterTanks);
       updateStats(mockAlerts);
+    } finally {
       setLoading(false);
-    }, 500);
+    }
+  };
+
+  // Fetch water tanks separately for refresh
+  const fetchWaterTanks = async () => {
+    setWaterTanksLoading(true);
+    try {
+      const response = await waterTankAPI.getAll();
+      const tanksData = response.data?.data || response.data || mockWaterTanks;
+      setWaterTanks(Array.isArray(tanksData) ? tanksData : mockWaterTanks);
+    } catch (err) {
+      console.error('Error fetching water tanks:', err);
+      // Keep existing data on error
+    } finally {
+      setWaterTanksLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+    
+    // Set up auto-refresh for water tanks every 30 seconds
+    const intervalId = setInterval(() => {
+      fetchWaterTanks();
+    }, 30000);
+    
+    return () => clearInterval(intervalId);
   }, []);
 
   const updateStats = (alertList) => {
@@ -187,11 +382,16 @@ const AdminAlerts = () => {
       if (filters.status.length > 0 && !filters.status.includes(alert.status)) {
         return false;
       }
+      if (filters.category && alert.category !== filters.category) {
+        return false;
+      }
       if (filters.device && !alert.deviceId.toLowerCase().includes(filters.device.toLowerCase())) {
         return false;
       }
       // Date range filtering logic
-      const alertTime = alert.timestamp.getTime();
+      const alertTime = alert.timestamp instanceof Date 
+        ? alert.timestamp.getTime() 
+        : new Date(alert.timestamp).getTime();
       const now = Date.now();
       switch (filters.dateRange) {
         case '24h':
@@ -250,28 +450,243 @@ const AdminAlerts = () => {
   };
 
   const handleExport = () => {
-    const csv = [
-      ['Type', 'Severity', 'Status', 'Device ID', 'Timestamp', 'Smoke (PPM)', 'Temp (°C)', 'Humidity (%)'].join(','),
-      ...filterAlerts().map(a =>
-        [
-          a.type,
-          a.severity,
-          a.status,
-          a.deviceId,
-          a.timestamp.toISOString(),
-          a.readings.smoke,
-          a.readings.temperature,
-          a.readings.humidity
-        ].join(',')
-      )
+    // Get date range for report (last 7 days)
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 7);
+
+    // Filter alerts from last 7 days
+    const weeklyAlerts = alerts.filter(alert => {
+      const alertDate = alert.timestamp instanceof Date 
+        ? alert.timestamp 
+        : new Date(alert.timestamp);
+      return alertDate >= startDate && alertDate <= endDate;
+    });
+
+    // === SECTION 1: Alert Details ===
+    const alertHeaders = [
+      'Alert ID',
+      'Timestamp',
+      'Category',
+      'Subcategory',
+      'Severity',
+      'Status',
+      'Device/Tank ID',
+      'Zone',
+      'Description',
+      'Smoke PPM',
+      'Temperature (°C)',
+      'Humidity (%)',
+      'Water Level (%)',
+      'AQI',
+      'Automation Actions',
+      'Municipality Notified',
+      'Acknowledged By',
+      'Acknowledged At',
+      'Resolved At',
+      'Duration (hours)',
+    ].join(',');
+
+    const alertRows = weeklyAlerts.map(alert => {
+      const timestamp = alert.timestamp instanceof Date 
+        ? alert.timestamp.toLocaleString() 
+        : new Date(alert.timestamp).toLocaleString();
+      
+      const acknowledgedAt = alert.acknowledgedAt 
+        ? new Date(alert.acknowledgedAt).toLocaleString() 
+        : 'N/A';
+      
+      const resolvedAt = alert.status === 'resolved' && alert.resolvedAt
+        ? new Date(alert.resolvedAt).toLocaleString() 
+        : 'N/A';
+      
+      // Calculate duration if resolved
+      let duration = 'N/A';
+      if (alert.status === 'resolved' && alert.acknowledgedAt && alert.resolvedAt) {
+        const diff = new Date(alert.resolvedAt) - new Date(alert.acknowledgedAt);
+        duration = (diff / (1000 * 60 * 60)).toFixed(2);
+      }
+
+      // Get automation actions
+      const actions = alert.automationActions?.join('; ') || alert.actions?.join('; ') || 'None';
+      
+      // Get municipality status
+      const municipalityNotified = alert.resourceData?.municipalityStatus?.notified ? 'Yes' : 'No';
+
+      // Safely escape message
+      const message = (alert.message || '').replace(/"/g, '""');
+
+      return [
+        alert.id || 'N/A',
+        timestamp,
+        alert.category || 'N/A',
+        alert.subcategory || alert.type || 'N/A',
+        alert.severity || 'N/A',
+        alert.status || 'N/A',
+        alert.deviceId || alert.resourceData?.tankId || 'N/A',
+        alert.resourceData?.zone || 'N/A',
+        `"${message}"`,
+        alert.readings?.smoke || 'N/A',
+        alert.readings?.temperature || 'N/A',
+        alert.readings?.humidity || 'N/A',
+        alert.resourceData?.waterLevel || 'N/A',
+        alert.readings?.aqi || 'N/A',
+        `"${actions}"`,
+        municipalityNotified,
+        alert.acknowledgedBy || 'N/A',
+        acknowledgedAt,
+        resolvedAt,
+        duration,
+      ].join(',');
+    }).join('\n');
+
+    // === SECTION 2: Weekly Summary ===
+    const summaryData = {
+      totalAlerts: weeklyAlerts.length,
+      bySeverity: {
+        critical: weeklyAlerts.filter(a => a.severity === 'critical').length,
+        warning: weeklyAlerts.filter(a => a.severity === 'warning').length,
+        info: weeklyAlerts.filter(a => a.severity === 'info').length,
+      },
+      byCategory: {
+        airQuality: weeklyAlerts.filter(a => a.category === 'AIR_QUALITY').length,
+        waterResource: weeklyAlerts.filter(a => a.category === 'WATER_RESOURCE').length,
+        device: weeklyAlerts.filter(a => a.category === 'DEVICE').length,
+        municipality: weeklyAlerts.filter(a => a.category === 'MUNICIPALITY').length,
+      },
+      byStatus: {
+        active: weeklyAlerts.filter(a => a.status === 'active').length,
+        acknowledged: weeklyAlerts.filter(a => a.status === 'acknowledged').length,
+        resolved: weeklyAlerts.filter(a => a.status === 'resolved').length,
+      },
+    };
+
+    const summaryHeaders = 'Metric,Value';
+    const summaryRows = [
+      `Report Period,${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`,
+      `Generated On,${new Date().toLocaleString()}`,
+      `Total Alerts (Last 7 Days),${summaryData.totalAlerts}`,
+      '',
+      'ALERTS BY SEVERITY',
+      `Critical,${summaryData.bySeverity.critical}`,
+      `Warning,${summaryData.bySeverity.warning}`,
+      `Info,${summaryData.bySeverity.info}`,
+      '',
+      'ALERTS BY CATEGORY',
+      `Air Quality,${summaryData.byCategory.airQuality}`,
+      `Water Resource,${summaryData.byCategory.waterResource}`,
+      `Device,${summaryData.byCategory.device}`,
+      `Municipality,${summaryData.byCategory.municipality}`,
+      '',
+      'ALERTS BY STATUS',
+      `Active,${summaryData.byStatus.active}`,
+      `Acknowledged,${summaryData.byStatus.acknowledged}`,
+      `Resolved,${summaryData.byStatus.resolved}`,
     ].join('\n');
 
-    const blob = new Blob([csv], { type: 'text/csv' });
+    // === SECTION 3: Water Tank Summary ===
+    const tankHeaders = [
+      'Tank ID',
+      'Zone',
+      'Current Level (%)',
+      'Status',
+      'Capacity (L)',
+      'Sprinklers Available',
+      'Municipality Alerts (7 days)',
+      'Last Updated',
+    ].join(',');
+
+    const tankRows = waterTanks.map(tank => {
+      const municipalityAlerts = weeklyAlerts.filter(
+        a => a.category === 'MUNICIPALITY' && a.resourceData?.tankId === tank.tankId
+      ).length;
+
+      const lastUpdate = tank.lastUpdateTime || tank.lastUpdate;
+      const lastUpdateStr = lastUpdate 
+        ? (lastUpdate instanceof Date ? lastUpdate : new Date(lastUpdate)).toLocaleString()
+        : 'N/A';
+
+      return [
+        tank.tankId || 'N/A',
+        tank.zone || 'N/A',
+        tank.currentLevel || 'N/A',
+        tank.status || 'N/A',
+        tank.capacity || 'N/A',
+        tank.sprinklersDisabled ? 'No' : 'Yes',
+        municipalityAlerts,
+        lastUpdateStr,
+      ].join(',');
+    }).join('\n');
+
+    // === SECTION 4: Device Performance (if needed) ===
+    const deviceSummary = weeklyAlerts.reduce((acc, alert) => {
+      const deviceId = alert.deviceId || 'Unknown';
+      if (!acc[deviceId]) {
+        acc[deviceId] = {
+          deviceId,
+          totalAlerts: 0,
+          critical: 0,
+          warning: 0,
+          info: 0,
+        };
+      }
+      acc[deviceId].totalAlerts++;
+      if (alert.severity === 'critical') acc[deviceId].critical++;
+      if (alert.severity === 'warning') acc[deviceId].warning++;
+      if (alert.severity === 'info') acc[deviceId].info++;
+      return acc;
+    }, {});
+
+    const deviceHeaders = 'Device ID,Total Alerts,Critical,Warning,Info';
+    const deviceRows = Object.values(deviceSummary)
+      .sort((a, b) => b.totalAlerts - a.totalAlerts)
+      .map(d => [d.deviceId, d.totalAlerts, d.critical, d.warning, d.info].join(','))
+      .join('\n');
+
+    // === Combine all sections into one CSV ===
+    const csvContent = [
+      '=== VAYUDRISHTI ALERT MANAGEMENT REPORT ===',
+      '',
+      '',
+      '=== WEEKLY SUMMARY ===',
+      summaryHeaders,
+      summaryRows,
+      '',
+      '',
+      '=== ALERT DETAILS ===',
+      alertHeaders,
+      alertRows,
+      '',
+      '',
+      '=== WATER TANK STATUS ===',
+      tankHeaders,
+      tankRows,
+      '',
+      '',
+      '=== DEVICE PERFORMANCE ===',
+      deviceHeaders,
+      deviceRows,
+      '',
+      '',
+      '--- End of Report ---',
+    ].join('\n');
+
+    // Create and download CSV file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `alerts_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
+    const link = document.createElement('a');
+    
+    const filename = `VayuDrishti_Alert_Report_${startDate.toISOString().split('T')[0]}_to_${endDate.toISOString().split('T')[0]}.csv`;
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    console.log(`Exported ${weeklyAlerts.length} alerts from the last 7 days`);
   };
 
   const filteredAlerts = filterAlerts();
@@ -294,6 +709,22 @@ const AdminAlerts = () => {
         animate={{ opacity: 1, y: 0 }}
         className="mb-8"
       >
+        {/* Error Banner */}
+        {error && (
+          <div className="mb-4 p-4 bg-yellow-900/20 border border-yellow-500/30 rounded-lg flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <AlertTriangle className="w-5 h-5 text-yellow-400" />
+              <span className="text-yellow-300">{error}</span>
+            </div>
+            <button
+              onClick={fetchData}
+              className="text-sm text-yellow-400 hover:text-yellow-300 underline"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
@@ -386,41 +817,45 @@ const AdminAlerts = () => {
           </motion.div>
         </div>
 
-        {/* Device Status Section */}
+        {/* Water Tanks Overview Section */}
         <div className="bg-gray-900/40 border border-gray-700/50 rounded-lg p-6 mb-8">
-          <h2 className="text-xl font-bold text-white mb-4">Device Status</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {devices.map(device => (
-              <div
-                key={device.id}
-                className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-4 hover:border-gray-600/50 transition-colors"
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-2">
+              <Droplets className="w-6 h-6 text-cyan-400" />
+              <h2 className="text-xl font-bold text-white">Water Tanks Overview</h2>
+            </div>
+            <div className="flex items-center space-x-3">
+              <span className="text-sm text-gray-400">{waterTanks.length} tanks monitored</span>
+              <button
+                onClick={fetchWaterTanks}
+                disabled={waterTanksLoading}
+                className="flex items-center space-x-1 px-3 py-1 bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-400 rounded-lg transition-colors disabled:opacity-50"
+                title="Refresh water tanks"
               >
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <h3 className="text-white font-semibold">{device.name}</h3>
-                    <p className="text-gray-400 text-sm">{device.location}</p>
-                  </div>
-                  <DeviceStatusBadge
-                    status={device.status}
-                    lastSeen={device.lastSeen}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <span className={`px-2 py-1 rounded text-xs font-semibold ${device.relayState.led ? 'bg-red-500/30 text-red-300' : 'bg-gray-700/30 text-gray-400'}`}>
-                      💡 LED {device.relayState.led ? 'ON' : 'OFF'}
-                    </span>
-                    <span className={`px-2 py-1 rounded text-xs font-semibold ${device.relayState.fan ? 'bg-blue-500/30 text-blue-300' : 'bg-gray-700/30 text-gray-400'}`}>
-                      🌀 Fan {device.relayState.fan ? 'ON' : 'OFF'}
-                    </span>
-                    <span className={`px-2 py-1 rounded text-xs font-semibold ${device.relayState.pump ? 'bg-cyan-500/30 text-cyan-300' : 'bg-gray-700/30 text-gray-400'}`}>
-                      💦 Pump {device.relayState.pump ? 'ON' : 'OFF'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
+                <RefreshCw className={`w-4 h-4 ${waterTanksLoading ? 'animate-spin' : ''}`} />
+                <span className="text-xs">Refresh</span>
+              </button>
+            </div>
           </div>
+          {waterTanksLoading && waterTanks.length === 0 ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400 mx-auto mb-2"></div>
+                <p className="text-gray-400 text-sm">Loading water tanks...</p>
+              </div>
+            </div>
+          ) : waterTanks.length === 0 ? (
+            <div className="text-center py-8 text-gray-400">
+              <Droplets className="w-12 h-12 mx-auto mb-2 opacity-50" />
+              <p>No water tanks found</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {waterTanks.map(tank => (
+                <WaterTankWidget key={tank.tankId} tank={tank} compact={true} />
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Alerts Section */}

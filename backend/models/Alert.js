@@ -7,6 +7,28 @@
 const mongoose = require('mongoose');
 
 const AlertSchema = new mongoose.Schema({
+  // Alert Category System
+  category: {
+    type: String,
+    enum: ['AIR_QUALITY', 'DEVICE', 'WATER_RESOURCE', 'MUNICIPALITY'],
+    default: 'AIR_QUALITY',
+    index: true
+  },
+  subcategory: {
+    type: String,
+    enum: [
+      // Air Quality subcategories
+      'HIGH_SMOKE', 'HIGH_TEMPERATURE', 'LOW_HUMIDITY', 'POOR_AQI',
+      'FIRE_DETECTED', 'POLLUTION_CRITICAL',
+      // Device subcategories
+      'DEVICE_OFFLINE', 'SENSOR_MALFUNCTION',
+      // Water Resource subcategories
+      'WATER_LOW', 'WATER_CRITICAL', 'WATER_EMPTY', 'WATER_REFILLED',
+      'SPRINKLER_DISABLED_WATER', 'SPRINKLER_REENABLED',
+      // Municipality subcategories
+      'MUNICIPALITY_NOTIFIED', 'REFILL_REQUESTED', 'MUNICIPALITY_ACKNOWLEDGED'
+    ]
+  },
   type: {
     type: String,
     required: true,
@@ -17,7 +39,13 @@ const AlertSchema = new mongoose.Schema({
       'Device Offline', 
       'Compliance Alert',
       'FIRE_DETECTED',           // ML-detected fire
-      'POLLUTION_CRITICAL'       // ML-detected pollution
+      'POLLUTION_CRITICAL',      // ML-detected pollution
+      'Water Low',               // 20-40%
+      'Water Critical',          // < 20%
+      'Water Empty',             // < 5%
+      'Water Refilled',          // Recovery
+      'Sprinkler Disabled',      // Auto-disabled
+      'Municipality Notified'    // Alert sent
     ]
   },
   severity: {
@@ -90,6 +118,38 @@ const AlertSchema = new mongoose.Schema({
   automationBlocked: {
     type: String
   },
+  // Water Resource Specific Data
+  resourceData: {
+    tankId: String,
+    waterLevel: Number,
+    previousLevel: Number,
+    zone: String,
+    location: {
+      lat: Number,
+      long: Number
+    },
+    municipalityStatus: {
+      notified: {
+        type: Boolean,
+        default: false
+      },
+      notifiedAt: Date,
+      acknowledged: {
+        type: Boolean,
+        default: false
+      },
+      acknowledgedAt: Date,
+      responseNotes: String
+    },
+    sprinklerStatus: {
+      wasDisabled: {
+        type: Boolean,
+        default: false
+      },
+      disabledAt: Date,
+      reenabledAt: Date
+    }
+  },
   message: {
     type: String,
     required: true
@@ -133,5 +193,7 @@ const AlertSchema = new mongoose.Schema({
 // Index for querying recent ML alerts
 AlertSchema.index({ type: 1, timestamp: -1 });
 AlertSchema.index({ deviceId: 1, severity: 1, status: 1 });
+AlertSchema.index({ category: 1, status: 1 });
+AlertSchema.index({ 'resourceData.tankId': 1, status: 1 });
 
 module.exports = mongoose.model('Alert', AlertSchema);

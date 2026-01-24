@@ -13,7 +13,7 @@ function AlertFilter({ filters, onFilterChange, onReset }) {
           <Filter className="w-5 h-5 text-cyan-400" />
           <h3 className="font-semibold text-white">Filters</h3>
         </div>
-        {(filters.severity.length > 0 || filters.status.length > 0 || filters.dateRange !== 'all') && (
+        {(filters.severity.length > 0 || filters.status.length > 0 || filters.dateRange !== 'all' || filters.category) && (
           <button
             onClick={onReset}
             className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center space-x-1"
@@ -24,7 +24,23 @@ function AlertFilter({ filters, onFilterChange, onReset }) {
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        {/* Category Filter */}
+        <div>
+          <label className="block text-xs font-semibold text-gray-300 mb-2">Category</label>
+          <select
+            value={filters.category || 'all'}
+            onChange={(e) => onFilterChange({ ...filters, category: e.target.value === 'all' ? '' : e.target.value })}
+            className="w-full px-3 py-1 bg-slate-800/50 border border-slate-700 rounded text-xs text-gray-300 focus:outline-none focus:border-cyan-400"
+          >
+            <option value="all">All Categories</option>
+            <option value="AIR_QUALITY">Air Quality</option>
+            <option value="WATER_RESOURCE">Water Resource</option>
+            <option value="MUNICIPALITY">Municipality</option>
+            <option value="DEVICE">Device</option>
+          </select>
+        </div>
+
         {/* Severity Filter */}
         <div>
           <label className="block text-xs font-semibold text-gray-300 mb-2">Severity</label>

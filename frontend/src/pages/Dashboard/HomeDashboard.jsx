@@ -5,29 +5,34 @@ import AQIGauge from '../../components/Dashboard/Shared/AQIGauge';
 import SimpleTrendChart from '../../components/Dashboard/Shared/SimpleTrendChart';
 import HealthAdvice from '../../components/Dashboard/Shared/HealthAdvice';
 import MetricCard from '../../components/Dashboard/Shared/MetricCard';
-import { dashboardAPI } from '../../services/api';
+import { homeAPI } from '../../services/api';
 
 function HomeDashboard() {
   const [homeData, setHomeData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [notifyWhenSafe, setNotifyWhenSafe] = useState(false);
-  const deviceId = 'HOME-DEVICE-001'; // Should come from user
+  const homeId = 'HOME_001'; // Should come from user auth context
 
   useEffect(() => {
     fetchHomeData();
-    const interval = setInterval(fetchHomeData, 30000);
+    const interval = setInterval(fetchHomeData, 30000); // Refresh every 30 seconds
     return () => clearInterval(interval);
-  }, [deviceId]);
+  }, [homeId]);
 
   const fetchHomeData = async () => {
     try {
-      setLoading(true);
-      const response = await dashboardAPI.getHomeData?.(deviceId);
-      if (response?.data) {
+      setError(null);
+      const response = await homeAPI.getDashboard(homeId);
+      
+      if (response?.data?.success) {
         setHomeData(response.data);
+      } else {
+        throw new Error('Invalid response from server');
       }
     } catch (err) {
-      console.error('Error:', err);
+      console.error('Error fetching home data:', err);
+      setError('Failed to load home data. Using fallback data.');
       setHomeData(getMockHomeData());
     } finally {
       setLoading(false);
@@ -81,16 +86,37 @@ function HomeDashboard() {
     );
   }
 
-  const data = homeData || getMockHomeData();
+  // Transform API data to match component expectations
+  const data = homeData && homeData.summary ? {
+    currentAQI: homeData.summary.averageAQI || 0,
+    aqiStatus: homeData.summary.overallStatus,
+    temperature: homeData.rooms[0]?.temperature || 25,
+    humidity: homeData.rooms[0]?.humidity || 60,
+    location: `Home ${homeId}`,
+    rooms: homeData.rooms || [],
+    waterLevel: homeData.waterTank?.currentLevel || 0,
+    waterStatus: homeData.waterTank?.status || 'UNKNOWN',
+    totalRooms: homeData.summary.totalRooms || 0,
+    goodRooms: homeData.summary.goodRooms || 0,
+    alerts: homeData.recentAlerts || [],
+  } : getMockHomeData();
+  
   const recommendation = getHealthRecommendation(data.currentAQI);
 
   return (
     <div className="space-y-6">
+      {/* Error Banner */}
+      {error && (
+        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+          <p className="text-yellow-400 text-sm">{error}</p>
+        </div>
+      )}
+
       {/* Simplified Header */}
       <div className="text-center">
         <p className="text-sm uppercase tracking-[0.2em] text-cyan-200">Home Air Quality Monitor</p>
         <h1 className="text-4xl font-bold text-white mt-2">Your Air Quality</h1>
-        <p className="text-gray-400 mt-2">Real-time monitoring for your home</p>
+        <p className="text-gray-400 mt-2">Real-time monitoring for your home - {data.totalRooms} rooms</p>
       </div>
 
       {/* Large AQI Gauge */}

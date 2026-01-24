@@ -13,6 +13,9 @@ const automationRoutes = require('./routes/automationRoutes');
 const devicesRoutes = require('./routes/devicesRoutes');
 const droneRoutes = require('./routes/droneRoutes');
 const mlRoutes = require('./routes/mlRoutes');
+const waterTankRoutes = require('./routes/waterTankRoutes');
+const industryRoutes = require('./routes/industryRoutes');
+const homeRoutes = require('./routes/homeRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 9000;
@@ -41,7 +44,8 @@ app.get('/health', (req, res) => {
       mlEnabled: true,
       fireDetection: true,
       pollutionDetection: true,
-      automatedActions: true
+      automatedActions: true,
+      waterResourceMonitoring: true
     }
   });
 });
@@ -55,6 +59,9 @@ app.use('/api/automation', automationRoutes);
 app.use('/api/devices', devicesRoutes);
 app.use('/api/drone', droneRoutes);
 app.use('/api/ml', mlRoutes);
+app.use('/api/water-tanks', waterTankRoutes);
+app.use('/api/industry', industryRoutes);
+app.use('/api/home', homeRoutes);
 
 // 404 handler
 app.use((req, res) => {
@@ -82,6 +89,17 @@ app.listen(PORT, () => {
   console.log(`🤖 ML-Enabled: FIRE vs POLLUTION Detection`);
   console.log(`⏰ Started at: ${new Date().toISOString()}`);
   console.log('='.repeat(60));
+});
+
+// Handle uncaught exceptions and unhandled rejections
+process.on('uncaughtException', (error) => {
+  console.error('❌ Uncaught Exception:', error);
+  console.error('Stack:', error.stack);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled Rejection at:', promise);
+  console.error('Reason:', reason);
 });
 
 module.exports = app;

@@ -7,39 +7,94 @@ import MetricCard from '../../components/Dashboard/Shared/MetricCard';
 import SimpleTrendChart from '../../components/Dashboard/Shared/SimpleTrendChart';
 import AlertManager from '../../components/Dashboard/Shared/AlertManager';
 import AQIGauge from '../../components/Dashboard/Shared/AQIGauge';
-import { dashboardAPI } from '../../services/api';
+import { industryAPI } from '../../services/api';
 
 function IndustryDashboard() {
   const [industryData, setIndustryData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const facilityId = 'FACILITY-001'; // Should come from user profile
+  const facilityId = 'FACILITY_001'; // Should come from user profile/auth context
 
   useEffect(() => {
     fetchIndustryData();
-    const interval = setInterval(fetchIndustryData, 30000);
+    const interval = setInterval(fetchIndustryData, 30000); // Refresh every 30 seconds
     return () => clearInterval(interval);
   }, [facilityId]);
 
   const fetchIndustryData = async () => {
     try {
-      setLoading(true);
-      const response = await dashboardAPI.getIndustryData?.(facilityId);
-      if (response?.data) {
+      setError(null);
+      const response = await industryAPI.getDashboard(facilityId);
+      
+      if (response?.data?.success) {
         setIndustryData(response.data);
-        setError(null);
+      } else {
+        throw new Error('Invalid response from server');
       }
     } catch (err) {
       console.error('Error fetching industry data:', err);
+      setError('Failed to load facility data. Using fallback data.');
+      // Fallback to mock data
       setIndustryData(getMockIndustryData());
     } finally {
       setLoading(false);
     }
   };
 
-  const handleGenerateReport = () => {
-    // Generate and download PDF report
-    console.log('Generating compliance report...');
+  const handleGenerateReport = async () => {
+    try {
+      const endDate = new Date().toISOString().split('T')[0];
+      const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      
+      const response = await industryAPI.getComplianceReport(facilityId, startDate, endDate);
+      
+      // Generate CSV
+      const csvData = generateComplianceCSV(response.data);
+      const blob = new Blob([csvData], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Compliance_Report_${facilityId}_${endDate}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error generating report:', error);
+      alert('Failed to generate report. Please try again.');
+    }
+  };
+
+  const generateComplianceCSV = (data) => {
+    let csv = 'Facility Compliance Report\n\n';
+    csv += `Facility ID:,${data.facilityId}\n`;
+    csv += `Report Period:,${data.reportPeriod?.start} to ${data.reportPeriod?.end}\n`;
+    csv += `Generated:,${new Date().toLocaleString()}\n\n`;
+    
+    // Summary
+    csv += 'COMPLIANCE SUMMARY\n';
+    csv += 'Metric,Value\n';
+    csv += `Overall Compliance Rate,${data.summary?.overallComplianceRate || 0}%\n`;
+    csv += `Total Violations,${data.summary?.totalViolations || 0}\n`;
+    csv += `Average AQI,${data.summary?.averageAQI || 0}\n`;
+    csv += `Peak AQI,${data.summary?.peakAQI || 0}\n\n`;
+    
+    // Zone-wise compliance
+    csv += 'ZONE-WISE COMPLIANCE\n';
+    csv += 'Zone Name,Zone Type,Avg AQI,Max AQI,Violations,Compliance Rate,Status\n';
+    (data.zoneCompliance || []).forEach(zone => {
+      csv += `${zone.zoneName},${zone.zoneType},${zone.averageAQI},${zone.maxAQI},${zone.violations},${zone.complianceRate}%,${zone.status}\n`;
+    });
+    csv += '\n';
+    
+    // Violations log
+    csv += 'VIOLATIONS LOG\n';
+    csv += 'Timestamp,Zone,AQI,Limit,Excess,Duration (min)\n';
+    (data.violations || []).forEach(v => {
+      csv += `${v.timestamp},${v.zoneName},${v.aqi},${v.limit},${v.excess},${v.duration}\n`;
+    });
+    
+    return csv;
   };
 
   if (loading && !industryData) {
@@ -53,15 +108,81 @@ function IndustryDashboard() {
     );
   }
 
-  const data = industryData || getMockIndustryData();
+  // Transform API data to match component expectations
+  const data = industryData && industryData.summary ? {
+    facilityName: `Facility ${facilityId}`,
+    complianceStatus: industryData.summary.complianceRate >= 90 ? 'COMPLIANT' : 
+                      industryData.summary.complianceRate >= 70 ? 'WARNING' : 'NON_COMPLIANT',
+    compliancePercentage: parseFloat(industryData.summary.complianceRate) || 0,
+    lastComplianceCheck: 'Just now',
+    averageAQI: industryData.summary.averageAQI || 0,
+    aqiStatus: industryData.summary.averageAQI <= 50 ? 'GOOD' :
+               industryData.summary.averageAQI <= 100 ? 'MODERATE' :
+               industryData.summary.averageAQI <= 200 ? 'UNHEALTHY' : 'HAZARDOUS',
+    aqiTrend: 0,
+    emissionRate: (industryData.summary.averageAQI * 0.35).toFixed(1),
+    totalZones: industryData.summary.totalZones || 0,
+    activeZones: industryData.summary.activeZones || 0,
+    criticalZones: industryData.summary.criticalZones || 0,
+    totalDevices: industryData.summary.totalDevices || 0,
+    zones: industryData.zones || [],
+    alerts: (industryData.recentAlerts || []).map(alert => ({
+      id: alert._id || alert.id,
+      title: alert.type,
+      message: alert.message,
+      severity: alert.severity,
+      timestamp: new Date(alert.timestamp).toLocaleString(),
+    })),
+    waterTanks: industryData.waterTanks || [],
+    lastReportDate: new Date().toISOString().split('T')[0],
+  } : getMockIndustryData();
 
   return (
     <div className="space-y-8">
+      {/* Error Banner */}
+      {error && (
+        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+          <p className="text-yellow-400 text-sm">{error}</p>
+        </div>
+      )}
+
       {/* Header */}
       <div>
         <p className="text-sm uppercase tracking-[0.2em] text-cyan-200">Facility Monitoring</p>
         <h1 className="text-3xl font-bold text-white">{data.facilityName}</h1>
         <p className="text-gray-400 mt-1">Regulatory compliance and operational monitoring</p>
+      </div>
+
+      {/* Key Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          title="Total Zones"
+          value={data.totalZones}
+          unit="zones"
+          icon={Building2}
+          color="from-blue-500/20 to-blue-700/10"
+        />
+        <StatCard
+          title="Active Zones"
+          value={data.activeZones}
+          unit="online"
+          icon={TrendingUp}
+          color="from-green-500/20 to-green-700/10"
+        />
+        <StatCard
+          title="Critical Zones"
+          value={data.criticalZones}
+          unit="alerts"
+          icon={AlertTriangle}
+          color="from-red-500/20 to-red-700/10"
+        />
+        <StatCard
+          title="Total Devices"
+          value={data.totalDevices}
+          unit="sensors"
+          icon={BarChart3}
+          color="from-cyan-500/20 to-cyan-700/10"
+        />
       </div>
 
       {/* Compliance Status */}
