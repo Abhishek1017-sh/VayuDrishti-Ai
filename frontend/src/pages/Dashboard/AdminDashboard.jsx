@@ -405,9 +405,18 @@ function AdminDashboard() {
                 </div>
               </div>
 
-              <LiveMetric label="Temperature" value={latestSensor?.temperature || displayDevice?.temperature || 0} suffix="°C" color="text-gray-100" />
-              <LiveMetric label="Humidity" value={latestSensor?.humidity || displayDevice?.humidity || 0} suffix="%" color="text-gray-100" />
-              <LiveMetric label="MQ Index" value={latestSensor?.mq || displayDevice?.mq || 0} suffix="" color="text-gray-100" />
+              <LiveMetric label="Temperature" value={(() => {
+                const temp = latestSensor?.temperature || displayDevice?.temperature || 0;
+                return isNaN(temp) ? 'N/A' : parseFloat(temp).toFixed(1);
+              })()} suffix="°C" color="text-gray-100" />
+              <LiveMetric label="Humidity" value={(() => {
+                const humidity = latestSensor?.humidity || displayDevice?.humidity || 0;
+                return isNaN(humidity) ? 'N/A' : parseFloat(humidity).toFixed(1);
+              })()} suffix="%" color="text-gray-100" />
+              <LiveMetric label="MQ Index" value={(() => {
+                const mq = latestSensor?.mq || displayDevice?.mq || 0;
+                return isNaN(mq) ? 'N/A' : Math.round(mq);
+              })()} suffix="" color="text-gray-100" />
             </div>
 
             <div className="mt-6 h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
@@ -680,7 +689,7 @@ function LiveMetric({ label, value, suffix, color }) {
   return (
     <div className="p-3 rounded-xl bg-white/5 border border-white/10 min-w-[140px]">
       <p className="text-xs text-gray-400 mb-1">{label}</p>
-      <p className={`text-2xl font-bold ${color}`}>{value}{suffix}</p>
+      <p className={`text-2xl font-bold ${color} overflow-hidden text-ellipsis whitespace-nowrap`}>{value}{suffix}</p>
       <p className="text-[10px] uppercase tracking-wide text-gray-500 mt-1">Real-time</p>
     </div>
   );
