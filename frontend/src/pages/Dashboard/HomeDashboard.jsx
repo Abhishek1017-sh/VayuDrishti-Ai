@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Wind, Cloud, Droplets, Bell, Activity, Wifi } from 'lucide-react';
+import { Wind, Cloud, Droplets, Bell, Activity, Wifi, Heart, Thermometer } from 'lucide-react';
 import AQIGauge from '../../components/Dashboard/Shared/AQIGauge';
 import SimpleTrendChart from '../../components/Dashboard/Shared/SimpleTrendChart';
-import HealthAdvice from '../../components/Dashboard/Shared/HealthAdvice';
 import MetricCard from '../../components/Dashboard/Shared/MetricCard';
+import DiseaseInfoModal from '../../components/Home/DiseaseInfoModal';
+import ApplianceRecommendations from '../../components/Home/ApplianceRecommendations';
 import { homeAPI } from '../../services/api';
 
 function HomeDashboard() {
@@ -12,6 +13,7 @@ function HomeDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [notifyWhenSafe, setNotifyWhenSafe] = useState(false);
+  const [selectedDisease, setSelectedDisease] = useState(null);
   const homeId = 'HOME_001'; // Should come from user auth context
 
   useEffect(() => {
@@ -152,9 +154,6 @@ function HomeDashboard() {
         </div>
       </motion.div>
 
-      {/* Health Advice Panel (always visible) */}
-      <HealthAdvice aqi={data.currentAQI} location={data.location || 'Your Area'} />
-
       {/* Simple Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <motion.div
@@ -198,11 +197,98 @@ function HomeDashboard() {
         </motion.div>
       </div>
 
-      {/* Quick Action Buttons */}
+      {/* Health Recommendations Section */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
+        className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 border border-slate-700"
+      >
+        <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+          <Heart className="w-6 h-6 text-red-400" />
+          Health Recommendations
+        </h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Asthma */}
+          <button
+            onClick={() => setSelectedDisease('asthma')}
+            className="bg-slate-700/50 hover:bg-slate-700 p-4 rounded-xl border border-slate-600 hover:border-blue-500 transition-all text-left group"
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <Wind className="w-6 h-6 text-blue-400" />
+              <span className="font-semibold text-white">Asthma</span>
+            </div>
+            <p className="text-sm text-slate-400 group-hover:text-slate-300">
+              Risk may be {data.currentAQI > 100 ? 'high' : 'moderate'} when AQI is {data.currentAQI}
+            </p>
+            <div className="mt-2 text-xs text-blue-400 flex items-center gap-1">
+              <span>Click for guidance</span>
+              <span>→</span>
+            </div>
+          </button>
+
+          {/* Heart Issues */}
+          <button
+            onClick={() => setSelectedDisease('heartIssues')}
+            className="bg-slate-700/50 hover:bg-slate-700 p-4 rounded-xl border border-slate-600 hover:border-red-500 transition-all text-left group"
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <Heart className="w-6 h-6 text-red-400" />
+              <span className="font-semibold text-white">Heart Issues</span>
+            </div>
+            <p className="text-sm text-slate-400 group-hover:text-slate-300">
+              Cardiovascular risk {data.currentAQI > 100 ? 'elevated' : 'normal'}
+            </p>
+            <div className="mt-2 text-xs text-red-400 flex items-center gap-1">
+              <span>Click for guidance</span>
+              <span>→</span>
+            </div>
+          </button>
+
+          {/* Allergies */}
+          <button
+            onClick={() => setSelectedDisease('allergies')}
+            className="bg-slate-700/50 hover:bg-slate-700 p-4 rounded-xl border border-slate-600 hover:border-green-500 transition-all text-left group"
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <Activity className="w-6 h-6 text-green-400" />
+              <span className="font-semibold text-white">Allergies</span>
+            </div>
+            <p className="text-sm text-slate-400 group-hover:text-slate-300">
+              Allergy triggers {data.currentAQI > 100 ? 'likely' : 'possible'}
+            </p>
+            <div className="mt-2 text-xs text-green-400 flex items-center gap-1">
+              <span>Click for guidance</span>
+              <span>→</span>
+            </div>
+          </button>
+
+          {/* COPD */}
+          <button
+            onClick={() => setSelectedDisease('copd')}
+            className="bg-slate-700/50 hover:bg-slate-700 p-4 rounded-xl border border-slate-600 hover:border-orange-500 transition-all text-left group"
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <Thermometer className="w-6 h-6 text-orange-400" />
+              <span className="font-semibold text-white">Chronic COPD</span>
+            </div>
+            <p className="text-sm text-slate-400 group-hover:text-slate-300">
+              COPD symptoms {data.currentAQI > 100 ? 'may worsen' : 'manageable'}
+            </p>
+            <div className="mt-2 text-xs text-orange-400 flex items-center gap-1">
+              <span>Click for guidance</span>
+              <span>→</span>
+            </div>
+          </button>
+        </div>
+      </motion.div>
+
+      {/* Quick Action Buttons */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.6 }}
         className="grid grid-cols-1 sm:grid-cols-2 gap-4"
       >
         <button className="relative overflow-hidden rounded-2xl p-4 border border-cyan-400/30 backdrop-blur text-white font-semibold transition-all hover:border-cyan-400/60 hover:scale-105"
@@ -240,7 +326,7 @@ function HomeDashboard() {
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.6 }}
+        transition={{ delay: 0.7 }}
       >
         <SimpleTrendChart
           data={data.hourlyTrend || []}
@@ -250,11 +336,23 @@ function HomeDashboard() {
         />
       </motion.div>
 
+      {/* Smart Appliance Recommendations */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.75 }}
+      >
+        <ApplianceRecommendations 
+          currentAQI={data.currentAQI} 
+          roomType="LIVING_ROOM"
+        />
+      </motion.div>
+
       {/* Device Status */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.7 }}
+        transition={{ delay: 0.8 }}
         className="relative overflow-hidden rounded-2xl p-4 border border-white/5 backdrop-blur"
         style={{
           background: `linear-gradient(140deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02))`
@@ -279,7 +377,7 @@ function HomeDashboard() {
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.8 }}
+        transition={{ delay: 0.9 }}
         className="relative overflow-hidden rounded-2xl p-6 border border-white/5 backdrop-blur"
         style={{
           background: `linear-gradient(140deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02))`
@@ -305,6 +403,15 @@ function HomeDashboard() {
           </li>
         </ul>
       </motion.div>
+
+      {/* Disease Info Modal */}
+      {selectedDisease && (
+        <DiseaseInfoModal
+          disease={selectedDisease}
+          currentAQI={data.currentAQI}
+          onClose={() => setSelectedDisease(null)}
+        />
+      )}
     </div>
   );
 }
