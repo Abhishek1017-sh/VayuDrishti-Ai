@@ -1,117 +1,115 @@
-/**
- * VayuDrishti IoT Sensor Node
- * ESP8266 NodeMCU with MQ Smoke Sensor + DHT11
- * 
- * Hardware Connections:
- * - MQ Sensor -> A0 (Analog input)
- * - DHT11 Data -> D4 (GPIO2)
- * - DHT11 VCC -> 3.3V
- * - DHT11 GND -> GND
- * - MQ VCC -> 5V (from VIN)
- * - MQ GND -> GND
- * 
- * Installation:
- * 1. Install Arduino IDE
- * 2. Add ESP8266 board: File -> Preferences -> Additional Board URLs:
- *    http://arduino.esp8266.com/stable/package_esp8266com_index.json
- * 3. Install libraries:
- *    - ESP8266WiFi (built-in)
- *    - ESP8266HTTPClient (built-in)
- *    - DHT sensor library (by Adafruit)
- * 4. Select Board: NodeMCU 1.0 (ESP-12E Module)
- * 5. Update WiFi credentials and server URL below
- * 6. Upload to ESP8266
- */
-
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
 #include <DHT.h>
 
-#define DHTPIN D4        // DHT11 data pin connected to GPIO2 (D4)
-#define DHTTYPE DHT11    // DHT sensor type
-#define MQ_PIN A0        // MQ sensor analog pin
+// ===================================================
+// ✅ PIN CONFIG (NodeMCU pins)
+// ===================================================
+#define DHTPIN D4          // D4 = GPIO2
+#define DHTTYPE DHT11
+#define MQ_PIN A0
 
-const char* ssid = "YOUR_WIFI_NAME";           // Your WiFi network name
-const char* password = "YOUR_WIFI_PASSWORD";   // Your WiFi password
+#define RELAY_LED  D0      // D0 = GPIO16
+#define RELAY_PUMP D5      // D5 = GPIO14
 
-// ========================================
-// SERVER CONFIGURATION
-// ========================================
-// ⚠️ REPLACE WITH YOUR LAPTOP/SERVER IP ADDRESS
-// Find your IP:
-//   - Mac: Open Terminal, run: ipconfig getifaddr en0
-//   - Windows: Open CMD, run: ipconfig
-//   - Linux: ifconfig or ip addr show
-String serverUrl = "http://192.168.1.5:9000/api/sensors";
+// ===================================================
+// ✅ WIFI CONFIG
+// ===================================================
+const char* ssid = "Tenda_700838";
+const char* password = "KrishnaBhardwaj@8533";
 
-// Device identification
+// ===================================================
+// ✅ BACKEND SERVER URL (Your Laptop IP)
+// ===================================================
+String serverUrl = "http://192.168.0.104:9000/api/sensors";
+
+// Device ID
 const char* deviceId = "classroom-01";
 
-// ========================================
-// SENSOR THRESHOLDS & SETTINGS
-// ========================================
-const int SEND_INTERVAL = 5000;    // Send data every 5 seconds (5000ms)
-const int MQ_SAMPLES = 10;         // Number of MQ readings to average
-const int AQI_THRESHOLD = 100;     // AQI threshold for triggering relay
-const int RELAY_ON_DURATION = 30000; // Keep relay ON for 30 seconds when triggered
+// ===================================================
+// ✅ SETTINGS
+// ===================================================
+const int SEND_INTERVAL = 5000;
+const int MQ_SAMPLES = 10;
 
-// Initialize DHT sensor
+// AQI thresholds
+const int AQI_LED_THRESHOLD  = 100;   // LED Relay ON if AQI > 100
+const int AQI_PUMP_THRESHOLD = 200;   // Pump Relay ON if AQI > 200
+
+// Pump ON time
+const int PUMP_ON_DURATION = 30000;   // 30 sec ON
+
+// ===================================================
+// ✅ SENSOR OBJECT
+// ===================================================
 DHT dht(DHTPIN, DHTTYPE);
 
-// Relay control variables
-bool relayActive = false;
-unsigned long relayActivatedTime = 0;
+// ===================================================
+// ✅ GLOBALS
+// ===================================================
+bool pumpActive = false;
+unsigned long pumpStartTime = 0;
 
-// ========================================
-// HELPER FUNCTIONS
-// ========================================
-
-/**
- * Read MQ sensor with averaging for noise reduction
- * Takes multiple samples and returns the average
- */
-int readMQAverage(int samples = MQ_SAMPLES) {
-  long sum = 0;
-  
-  for (int i = 0; i < samples; i++) {
-    sum += analogRead(MQ_PIN);
-    delay(50); // Small delay between readings
-  }
-  
-  return sum / samples;
-}
-
-/**
- * Clamp integer value between min and max
- */
+// ===================================================
+// ✅ HELPER FUNCTIONS
+// ===================================================
 int clampInt(int value, int minVal, int maxVal) {
   if (value < minVal) return minVal;
   if (value > maxVal) return maxVal;
   return value;
 }
 
-/**
- * Convert MQ sensor reading to AQI score (0-500)
- * Based on empirical mapping for classroom environment
- * Adjust these values based on your sensor calibration
- */
-int mqToAQI(int mqValue) {
-  // Mapping parameters
-  const int minMQ = 300;   // Clean air baseline
-  const int maxMQ = 900;   // Severe pollution threshold
-  const int minAQI = 0;
-  const int maxAQI = 500;
-  
-  // Linear mapping
-  int aqi = ((mqValue - minMQ) * (maxAQI - minAQI)) / (maxMQ - minMQ) + minAQI;
-  
-  // Clamp to valid AQI range
-  return clampInt(aqi, minAQI, maxAQI);
+int readMQAverage(int samples = MQ_SAMPLES) {
+  long sum = 0;
+  for (int i = 0; i < samples; i++) {
+    sum += analogRead(MQ_PIN);
+    delay(50);
+  }
+  return sum / samples;
 }
 
-/**
- * Get air quality status category based on AQI
- */
+// ✅ LOW Trigger relay functions (ACTIVE LOW relay module)
+void relayOn(int pin) {
+  digitalWrite(pin, LOW);   // ON
+}
+
+void relayOff(int pin) {
+  digitalWrite(pin, HIGH);  // OFF
+}
+
+// ===================================================
+// ✅ SMART AQI CALCULATION (MQ + TEMP + HUM)
+// ===================================================
+int calculateSmartAQI(int mq, float temp, float hum) {
+  // ---- Smoke AQI (0–400) ----
+  int mqMin = 300;   // adjust after calibration
+  int mqMax = 900;
+
+  int smokeAQI = ((mq - mqMin) * 400) / (mqMax - mqMin);
+  smokeAQI = clampInt(smokeAQI, 0, 400);
+
+  // ---- Temperature penalty (0–50) ----
+  int tempPenalty = 0;
+  if (temp > 30) tempPenalty = (int)((temp - 30) * 2);
+  else if (temp < 18) tempPenalty = (int)((18 - temp) * 2);
+  tempPenalty = clampInt(tempPenalty, 0, 50);
+
+  // ---- Humidity penalty (0–50) ----
+  int humPenalty = 0;
+  if (hum > 60) humPenalty = (int)((hum - 60) * 1.5);
+  else if (hum < 40) humPenalty = (int)((40 - hum) * 1.5);
+  humPenalty = clampInt(humPenalty, 0, 50);
+
+  // ---- Final AQI (0–500) ----
+  int finalAQI = smokeAQI + tempPenalty + humPenalty;
+  finalAQI = clampInt(finalAQI, 0, 500);
+
+  // ✅ Always show minimum 50
+  if (finalAQI <  100) finalAQI = finalAQI + 50;
+
+  return finalAQI;
+}
+
 String getStatus(int aqi) {
   if (aqi <= 50) return "GOOD";
   if (aqi <= 100) return "MODERATE";
@@ -120,212 +118,154 @@ String getStatus(int aqi) {
   return "SEVERE";
 }
 
-/**
- * Get status emoji for serial monitor
- */
-String getStatusEmoji(String status) {
-  if (status == "GOOD") return "✅";
-  if (status == "MODERATE") return "🙂";
-  if (status == "POOR") return "⚠️";
-  if (status == "VERY_POOR") return "🚨";
-  return "🔥";
-}
-
-// ========================================
-// SETUP
-// ========================================
+// ===================================================
+// ✅ SETUP
+// ===================================================
 void setup() {
-  // Initialize serial communication
   Serial.begin(9600);
   delay(1000);
-  
-  Serial.println("\n\n");
+
+  Serial.println("\n========================================");
+  Serial.println("✅ VayuDrishti Final ESP8266 Code");
+  Serial.println("✅ MQ + DHT11 + 2 Relays + API");
   Serial.println("========================================");
-  Serial.println("  VayuDrishti IoT Sensor Node");
-  Serial.println("  ESP8266 + MQ Sensor + DHT11");
-  Serial.println("========================================");
-  
-  // Initialize DHT sensor
+
   dht.begin();
-  Serial.println("✅ DHT11 sensor initialized");
-  
-  // Initialize MQ sensor pin
-  pinMode(MQ_PIN, INPUT);
-  Serial.println("✅ MQ sensor initialized");
-  
-  // Initialize Relay pin
-  pinMode(RELAY_PIN, OUTPUT);
-  digitalWrite(RELAY_PIN, LOW); // Start with relay OFF
-  Serial.println("✅ Relay initialized (OFF)");
-  
-  // Connect to WiFi
-  Serial.print("\n📡 Connecting to WiFi: ");
+
+  pinMode(RELAY_LED, OUTPUT);
+  pinMode(RELAY_PUMP, OUTPUT);
+
+  // Start relays OFF
+  relayOff(RELAY_LED);
+  relayOff(RELAY_PUMP);
+
+  // WiFi connect
+  Serial.print("📡 Connecting WiFi: ");
   Serial.println(ssid);
-  
+
   WiFi.begin(ssid, password);
-  
+
   int attempts = 0;
   while (WiFi.status() != WL_CONNECTED && attempts < 30) {
     delay(500);
     Serial.print(".");
     attempts++;
   }
-  
+
   if (WiFi.status() == WL_CONNECTED) {
     Serial.println("\n✅ WiFi Connected!");
-    Serial.print("📍 IP Address: ");
+    Serial.print("📍 ESP IP: ");
     Serial.println(WiFi.localIP());
-    Serial.print("🌐 Server URL: ");
+    Serial.print("🌐 Backend URL: ");
     Serial.println(serverUrl);
   } else {
     Serial.println("\n❌ WiFi Connection Failed!");
-    Serial.println("⚠️  Check your WiFi credentials and try again");
   }
-  
-  Serial.println("========================================");
-  Serial.println("Starting sensor readings...\n");
+
+  Serial.println("========================================\n");
 }
 
-// ========================================
-// MAIN LOOP
-// ========================================
+// ===================================================
+// ✅ LOOP
+// ===================================================
 void loop() {
-  // Read MQ sensor with averaging
+  // ---- Read sensors ----
   int mqAvg = readMQAverage(MQ_SAMPLES);
-  
-  // Read DHT11 sensor
+
   float temp = dht.readTemperature();
-  float hum = dht.readHumidity();
-  
-  // ========================================
-  // VALIDATE DHT READINGS
-  // ========================================
+  float hum  = dht.readHumidity();
+
+  // Validate DHT
   if (isnan(temp) || isnan(hum)) {
-    Serial.println("❌ Failed to read from DHT sensor!");
+    Serial.println("❌ DHT11 Read Failed!");
     delay(2000);
     return;
   }
-  
-  // Validate temperature range
-  if (temp < -10 || temp > 60) {
-    Serial.println("❌ Invalid temperature reading, skipping...");
+
+  if (temp < -10 || temp > 60 || hum < 0 || hum > 100) {
+    Serial.println("❌ Invalid DHT values, skipping...");
     delay(2000);
     return;
   }
-  
-  // Validate humidity range
-  if (hum < 0 || hum > 100) {
-    Serial.println("❌ Invalid humidity reading, skipping...");
-    delay(2000);
-    return;
-  }
-  
-  // ========================================
-  // CALCULATE AQI
-  // ========================================
-  int aqi = mqToAQI(mqAvg);
+
+  // ---- Calculate Smart AQI ----
+  int aqi = calculateSmartAQI(mqAvg, temp, hum);
   String status = getStatus(aqi);
-  String emoji = getStatusEmoji(status);
-  
-  // ========================================
-  // DISPLAY ON SERIAL MONITOR
-  // ========================================
+
+  // ===================================================
+  // ✅ RELAY CONTROL LOGIC
+  // ===================================================
+
+  // Relay 1 (LED) → AQI > 100
+  if (aqi > AQI_LED_THRESHOLD) relayOn(RELAY_LED);
+  else relayOff(RELAY_LED);
+
+  // Relay 2 (Pump) → AQI > 200 (timer ON)
+  if (aqi > AQI_PUMP_THRESHOLD && !pumpActive) {
+    relayOn(RELAY_PUMP);
+    pumpActive = true;
+    pumpStartTime = millis();
+    Serial.println("🚨 Pump ON (High AQI)");
+  }
+
+  if (pumpActive && (millis() - pumpStartTime >= PUMP_ON_DURATION)) {
+    relayOff(RELAY_PUMP);
+    pumpActive = false;
+    Serial.println("✅ Pump OFF (timer expired)");
+  }
+
+  // ===================================================
+  // ✅ SERIAL OUTPUT
+  // ===================================================
   Serial.println("────────────────────────────────────────");
-  Serial.print("🌡️  Temperature: ");
-  Serial.print(temp, 1);
-  Serial.println(" °C");
-  
-  Serial.print("💧 Humidity: ");
-  Serial.print(hum, 1);
-  Serial.println(" %");
-  
-  Serial.print("💨 MQ Reading: ");
-  Serial.println(mqAvg);
-  
-  Serial.print("📊 AQI Score: ");
-  Serial.print(aqi);
-  Serial.print(" ");
-  Serial.println(emoji);
-  
-  Serial.print("🎯 Status: ");
-  Serial.println(status);
-  
-  // ========================================
-  // RELAY CONTROL (AQI > 100)
-  // ========================================
-  if (aqi > AQI_THRESHOLD && !relayActive) {
-    // Turn relay ON when AQI exceeds threshold
-    digitalWrite(RELAY_PIN, HIGH);
-    relayActive = true;
-    relayActivatedTime = millis();
-    
-    Serial.println("🚨 AQI ALERT! Relay activated!");
-    Serial.print("   → AQI (");
-    Serial.print(aqi);
-    Serial.print(") > Threshold (");
-    Serial.print(AQI_THRESHOLD);
-    Serial.println(")");
-  }
-  
-  // Auto turn OFF relay after duration
-  if (relayActive && (millis() - relayActivatedTime >= RELAY_ON_DURATION)) {
-    digitalWrite(RELAY_PIN, LOW);
-    relayActive = false;
-    Serial.println("✅ Relay deactivated (timer expired)");
-  }
-  
-  // Display relay status
-  Serial.print("🔌 Relay Status: ");
-  Serial.println(relayActive ? "ON ⚡" : "OFF");
-  
-  // ========================================
-  // SEND DATA TO BACKEND SERVER
-  // ========================================
+  Serial.print("🌡 Temp: "); Serial.print(temp, 1); Serial.println(" °C");
+  Serial.print("💧 Hum: "); Serial.print(hum, 1); Serial.println(" %");
+  Serial.print("💨 MQ Avg: "); Serial.println(mqAvg);
+  Serial.print("📊 Smart AQI: "); Serial.println(aqi);
+  Serial.print("🎯 Status: "); Serial.println(status);
+
+  Serial.print("💡 LED Relay: ");
+  Serial.println(aqi > AQI_LED_THRESHOLD ? "ON ✅" : "OFF ❌");
+
+  Serial.print("🚰 Pump Relay: ");
+  Serial.println(pumpActive ? "ON ✅" : "OFF ❌");
+
+  // ===================================================
+  // ✅ SEND TO BACKEND API
+  // ===================================================
   if (WiFi.status() == WL_CONNECTED) {
     WiFiClient client;
     HTTPClient http;
-    
-    // Begin HTTP connection
+
     http.begin(client, serverUrl);
     http.addHeader("Content-Type", "application/json");
-    
-    // Build JSON payload
-    String jsonPayload = "{";
-    jsonPayload += "\"deviceId\":\"" + String(deviceId) + "\",";
-    jsonPayload += "\"mq\":" + String(mqAvg) + ",";
-    jsonPayload += "\"aqi\":" + String(aqi) + ",";
-    jsonPayload += "\"temperature\":" + String(temp, 1) + ",";
-    jsonPayload += "\"humidity\":" + String(hum, 1) + ",";
-    jsonPayload += "\"status\":\"" + status + "\",";
-    jsonPayload += "\"relayStatus\":\"" + String(relayActive ? "ON" : "OFF") + "\"";
-    jsonPayload += "}";
-    
-    // Send POST request
-    int httpResponseCode = http.POST(jsonPayload);
-    
-    // Check response
-    if (httpResponseCode > 0) {
-      Serial.print("✅ Data sent to server | Response: ");
-      Serial.println(httpResponseCode);
-      
-      if (httpResponseCode == 201 || httpResponseCode == 200) {
-        Serial.println("   → Data saved successfully!");
-      }
+
+    String payload = "{";
+    payload += "\"deviceId\":\"" + String(deviceId) + "\",";
+    payload += "\"mq\":" + String(mqAvg) + ",";
+    payload += "\"aqi\":" + String(aqi) + ",";
+    payload += "\"temperature\":" + String(temp, 1) + ",";
+    payload += "\"humidity\":" + String(hum, 1) + ",";
+    payload += "\"status\":\"" + status + "\",";
+    payload += "\"ledRelay\":\"" + String(aqi > AQI_LED_THRESHOLD ? "ON" : "OFF") + "\",";
+    payload += "\"pumpRelay\":\"" + String(pumpActive ? "ON" : "OFF") + "\"";
+    payload += "}";
+
+    int code = http.POST(payload);
+
+    if (code > 0) {
+      Serial.print("✅ Data sent | HTTP Code: ");
+      Serial.println(code);
     } else {
-      Serial.print("❌ HTTP Error: ");
-      Serial.println(http.errorToString(httpResponseCode));
-      Serial.println("   → Check server URL and network connection");
+      Serial.println("❌ HTTP Error: connection failed");
     }
-    
+
     http.end();
   } else {
-    Serial.println("❌ WiFi Disconnected!");
-    Serial.println("   → Attempting to reconnect...");
+    Serial.println("❌ WiFi Disconnected → reconnecting...");
     WiFi.reconnect();
   }
-  
+
   Serial.println("────────────────────────────────────────\n");
-  
-  // Wait before next reading
   delay(SEND_INTERVAL);
 }

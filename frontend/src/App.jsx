@@ -7,17 +7,21 @@ import Analytics from './pages/Analytics';
 import Alerts from './pages/Alerts';
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [userRole, setUserRole] = useState(null); // 'admin', 'industry', 'home'
+  const [isAuthenticated, setIsAuthenticated] = useState(() => localStorage.getItem('vd.auth') === 'true');
+  const [userRole, setUserRole] = useState(() => localStorage.getItem('vd.role')); // 'admin', 'industry', 'home'
 
   const handleLogin = (role) => {
     setIsAuthenticated(true);
     setUserRole(role);
+    localStorage.setItem('vd.auth', 'true');
+    localStorage.setItem('vd.role', role);
   };
 
   const handleLogout = () => {
     setIsAuthenticated(false);
     setUserRole(null);
+    localStorage.removeItem('vd.auth');
+    localStorage.removeItem('vd.role');
   };
 
   return (

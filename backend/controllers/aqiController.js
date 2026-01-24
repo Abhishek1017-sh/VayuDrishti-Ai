@@ -68,10 +68,35 @@ exports.getCurrentAQI = (req, res) => {
 /**
  * Get AQI history
  */
-exports.getAQIHistory = (req, res) => {
+exports.getAQIHistory = async (req, res) => {
   try {
     const { hours = 24 } = req.query;
-    const history = dataStore.getAQIHistory(parseInt(hours));
+    const hoursInt = parseInt(hours);
+
+    let history = [];
+
+    // Prefer persisted data so old readings survive restarts
+    try {
+      const SensorData = require('../models/SensorData');
+      const cutoffTime = new Date(Date.now() - hoursInt * 60 * 60 * 1000);
+      const docs = await SensorData.find({ createdAt: { $gte: cutoffTime } })
+        .sort({ createdAt: 1 })
+        .select('aqi status createdAt');
+
+      history = docs.map((doc) => ({
+        value: doc.aqi,
+        status: doc.status,
+        category: normalizeStatus(doc.status),
+        timestamp: doc.createdAt
+      }));
+    } catch (dbError) {
+      console.log('⚠️  MongoDB not available for AQI history, falling back to in-memory');
+    }
+
+    // Fallback to in-memory buffer if DB returned nothing
+    if (!history.length) {
+      history = dataStore.getAQIHistory(hoursInt);
+    }
 
     res.json({
       success: true,
@@ -86,3 +111,16 @@ exports.getAQIHistory = (req, res) => {
     });
   }
 };
+
+// Normalize stored status values to the labels used by charts
+function normalizeStatus(status) {
+  if (!status) return 'Unknown';
+  const map = {
+    GOOD: 'Good',
+    MODERATE: 'Moderate',
+    POOR: 'Poor',
+    VERY_POOR: 'Very Poor',
+    SEVERE: 'Very Poor'
+  };
+  return map[status] || status;
+}

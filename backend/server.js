@@ -9,6 +9,9 @@ const sensorRoutes = require('./routes/sensorRoutes');
 const aqiRoutes = require('./routes/aqiRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const alertRoutes = require('./routes/alertRoutes');
+const automationRoutes = require('./routes/automationRoutes');
+const devicesRoutes = require('./routes/devicesRoutes');
+const droneRoutes = require('./routes/droneRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 9000;
@@ -41,6 +44,9 @@ app.use('/api/sensors', sensorRoutes);
 app.use('/api/aqi', aqiRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/alerts', alertRoutes);
+app.use('/api/automation', automationRoutes);
+app.use('/api/devices', devicesRoutes);
+app.use('/api/drone', droneRoutes);
 
 // 404 handler
 app.use((req, res) => {

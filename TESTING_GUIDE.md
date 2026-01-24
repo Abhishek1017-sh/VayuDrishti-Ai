@@ -49,7 +49,7 @@ Expected: AQI ~115 (Poor), Warning alert, Ventilation ON
 
 ### Scenario 4: Very Poor Air Quality (Critical Level)
 ```bash
-curl -X POST http://localhost:5000/api/sensors/data \
+curl -X POST http://localhost:9000/api/sensors/data \
   -H "Content-Type: application/json" \
   -d '{
     "smoke": 850,

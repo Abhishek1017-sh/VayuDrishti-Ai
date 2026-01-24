@@ -83,17 +83,37 @@ exports.getDashboardData = async (req, res) => {
 /**
  * Get analytics data
  */
-exports.getAnalytics = (req, res) => {
+exports.getAnalytics = async (req, res) => {
   try {
     const { period = '24h' } = req.query;
-    
+
     let hours = 24;
     if (period === '7d') hours = 168;
     if (period === '30d') hours = 720;
 
-    const aqiHistory = dataStore.getAQIHistory(hours);
-    
-    // Calculate trends
+    let aqiHistory = [];
+
+    // Try MongoDB first so previously stored data shows up after restarts
+    try {
+      const cutoffTime = new Date(Date.now() - hours * 60 * 60 * 1000);
+      const docs = await SensorData.find({ createdAt: { $gte: cutoffTime } })
+        .sort({ createdAt: 1 })
+        .select('aqi status createdAt');
+
+      aqiHistory = docs.map((doc) => ({
+        value: doc.aqi,
+        category: normalizeStatus(doc.status),
+        timestamp: doc.createdAt
+      }));
+    } catch (dbError) {
+      console.log('⚠️  MongoDB not available for analytics, falling back to in-memory history');
+    }
+
+    // Fallback to in-memory buffer if DB query returned nothing
+    if (!aqiHistory.length) {
+      aqiHistory = dataStore.getAQIHistory(hours);
+    }
+
     const analytics = {
       period,
       dataPoints: aqiHistory.length,
@@ -176,6 +196,19 @@ function getCategoryDistribution(data) {
   });
   
   return distribution;
+}
+
+// Normalize stored status values to the labels used by the charts
+function normalizeStatus(status) {
+  if (!status) return 'Unknown';
+  const map = {
+    GOOD: 'Good',
+    MODERATE: 'Moderate',
+    POOR: 'Poor',
+    VERY_POOR: 'Very Poor',
+    SEVERE: 'Very Poor'
+  };
+  return map[status] || status;
 }
 
 // Helper to get AQI color

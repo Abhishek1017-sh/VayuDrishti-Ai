@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { dashboardAPI, aqiAPI } from '../services/api';
-import { TrendingUp, TrendingDown, Minus, Calendar } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Calendar, Activity, Wind, Droplets } from 'lucide-react';
 
 function Analytics() {
   const [analyticsData, setAnalyticsData] = useState(null);
@@ -43,13 +43,34 @@ function Analytics() {
   };
 
   const formatChartData = (data) => {
-    return [...data].reverse().map(item => ({
-      time: new Date(item.timestamp).toLocaleTimeString('en-US', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      }),
-      aqi: item.value,
-      category: item.category
+    return data.map(item => {
+      const date = new Date(item.timestamp);
+      return {
+        time: date.toLocaleTimeString('en-US', { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        }),
+        fullDateTime: date.toLocaleDateString('en-GB', { 
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric'
+        }) + ', ' + date.toLocaleTimeString('en-US', { 
+          hour: '2-digit', 
+          minute: '2-digit',
+          hour12: true
+        }),
+        aqi: item.value,
+        category: item.category
+      };
+    });
+  };
+
+  const formatHourlySeries = (hourly) => {
+    if (!hourly || hourly.length === 0) return [];
+    return hourly.map(({ hour, average }) => ({
+      time: `${String(hour).padStart(2, '0')}:00`,
+      aqi: average,
+      category: ''
     }));
   };
 
@@ -95,28 +116,39 @@ function Analytics() {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="card p-4"
+              className="card p-6 bg-gradient-to-br from-cyan-600/20 to-cyan-700/10 border border-cyan-500/30"
             >
-              <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Average AQI</div>
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                {analyticsData?.average || 0}
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="text-sm text-cyan-400 mb-2 font-semibold">Average AQI</div>
+                  <div className="text-3xl font-bold text-white">
+                    {analyticsData?.average || 0}
+                  </div>
+                </div>
+                <Activity className="w-8 h-8 text-cyan-400 opacity-50" />
               </div>
+              <p className="text-xs text-cyan-300 mt-3">{period} average</p>
             </motion.div>
 
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="card p-4"
+              className="card p-6 bg-gradient-to-br from-orange-600/20 to-orange-700/10 border border-orange-500/30"
             >
-              <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Peak AQI</div>
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                {analyticsData?.peak?.value || 0}
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="text-sm text-orange-400 mb-2 font-semibold">Peak AQI</div>
+                  <div className="text-3xl font-bold text-white">
+                    {analyticsData?.peak?.value || 0}
+                  </div>
+                </div>
+                <TrendingUp className="w-8 h-8 text-orange-400 opacity-50" />
               </div>
               {analyticsData?.peak?.timestamp && (
-                <div className="text-xs text-gray-500 mt-1">
-                  {new Date(analyticsData.peak.timestamp).toLocaleString()}
-                </div>
+                <p className="text-xs text-orange-300 mt-2">
+                  {new Date(analyticsData.peak.timestamp).toLocaleString('en-GB')}
+                </p>
               )}
             </motion.div>
 
@@ -124,112 +156,220 @@ function Analytics() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="card p-4"
+              className="card p-6 bg-gradient-to-br from-blue-600/20 to-blue-700/10 border border-blue-500/30"
             >
-              <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Data Points</div>
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                {analyticsData?.dataPoints || 0}
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="text-sm text-blue-400 mb-2 font-semibold">Data Points</div>
+                  <div className="text-3xl font-bold text-white">
+                    {analyticsData?.dataPoints || aqiHistory?.length || 0}
+                  </div>
+                </div>
+                <Droplets className="w-8 h-8 text-blue-400 opacity-50" />
               </div>
+              <p className="text-xs text-blue-300 mt-3">readings captured</p>
             </motion.div>
 
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="card p-4"
+              className="card p-6 bg-gradient-to-br from-green-600/20 to-green-700/10 border border-green-500/30"
             >
-              <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Trend</div>
-              <div className="flex items-center space-x-2">
-                {getTrendIcon(analyticsData?.trend)}
-                <span className="text-lg font-semibold text-gray-900 dark:text-white capitalize">
-                  {analyticsData?.trend || 'stable'}
-                </span>
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="text-sm text-green-400 mb-2 font-semibold">Trend</div>
+                  <div className="flex items-center space-x-2 mt-1">
+                    {getTrendIcon(analyticsData?.trend)}
+                    <span className="text-lg font-semibold text-white capitalize">
+                      {analyticsData?.trend || 'stable'}
+                    </span>
+                  </div>
+                </div>
+                <Wind className="w-8 h-8 text-green-400 opacity-50" />
               </div>
             </motion.div>
           </div>
 
-          {/* AQI Over Time Chart */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="card p-6"
-          >
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              AQI Over Time
-            </h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={formatChartData(aqiHistory)}>
-                <defs>
-                  <linearGradient id="colorAqi" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.1} />
-                <XAxis 
-                  dataKey="time" 
-                  stroke="#9ca3af"
-                  tick={{ fill: '#9ca3af' }}
-                />
-                <YAxis 
-                  stroke="#9ca3af"
-                  tick={{ fill: '#9ca3af' }}
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#1e293b', 
-                    border: 'none',
-                    borderRadius: '8px',
-                    color: '#fff'
-                  }}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="aqi" 
-                  stroke="#0ea5e9" 
-                  fillOpacity={1} 
-                  fill="url(#colorAqi)" 
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </motion.div>
-
-          {/* Category Distribution */}
-          {analyticsData?.categoryDistribution && (
+          {/* Main Chart Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* AQI Over Time Chart - Takes 2 columns */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
-              className="card p-6"
+              transition={{ delay: 0.4 }}
+              className="lg:col-span-2 card p-6 border border-cyan-500/20 bg-gradient-to-br from-slate-800/50 to-slate-900/30"
             >
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                AQI Category Distribution
+              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <Activity className="w-5 h-5 text-cyan-400" />
+                AQI Over Time
               </h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={Object.entries(analyticsData.categoryDistribution).map(([key, value]) => ({
-                  category: key,
-                  count: value
-                }))}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.1} />
+              <ResponsiveContainer width="100%" height={350}>
+                <AreaChart data={(aqiHistory && aqiHistory.length) ? formatChartData(aqiHistory) : formatHourlySeries(analyticsData?.hourlyData)}>
+                  <defs>
+                    <linearGradient id="colorAqi" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#06b6d4" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#475569" opacity={0.2} />
                   <XAxis 
-                    dataKey="category" 
-                    stroke="#9ca3af"
-                    tick={{ fill: '#9ca3af' }}
+                    dataKey="time" 
+                    stroke="#94a3b8"
+                    tick={false}
+                    axisLine={{ stroke: '#475569' }}
                   />
                   <YAxis 
-                    stroke="#9ca3af"
-                    tick={{ fill: '#9ca3af' }}
+                    stroke="#94a3b8"
+                    tick={{ fill: '#94a3b8', fontSize: 12 }}
+                    axisLine={{ stroke: '#475569' }}
                   />
                   <Tooltip 
                     contentStyle={{ 
                       backgroundColor: '#1e293b', 
-                      border: 'none',
+                      border: '1px solid #475569',
+                      borderRadius: '12px',
+                      color: '#fff'
+                    }}
+                    labelFormatter={(value, payload) => {
+                      if (payload && payload[0] && payload[0].payload) {
+                        return payload[0].payload.fullDateTime || value;
+                      }
+                      return value;
+                    }}
+                    formatter={(value) => [value.toFixed(1), 'AQI']}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="aqi" 
+                    stroke="#06b6d4" 
+                    fillOpacity={1} 
+                    fill="url(#colorAqi)" 
+                    isAnimationActive={true}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </motion.div>
+
+            {/* Category Distribution Pie Chart */}
+            {analyticsData?.categoryDistribution && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                className="card p-6 border border-cyan-500/20 bg-gradient-to-br from-slate-800/50 to-slate-900/30"
+              >
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <Droplets className="w-5 h-5 text-cyan-400" />
+                  AQI Distribution
+                </h3>
+                <ResponsiveContainer width="100%" height={400}>
+                  <PieChart>
+                    <Pie
+                      data={Object.entries(analyticsData.categoryDistribution).map(([key, value]) => ({
+                        name: key.charAt(0).toUpperCase() + key.slice(1),
+                        value: value
+                      }))}
+                      cx="50%"
+                      cy="45%"
+                      labelLine={false}
+                      label={false}
+                      outerRadius={100}
+                      innerRadius={0}
+                      paddingAngle={2}
+                      dataKey="value"
+                    >
+                      <Cell fill="#22c55e" />
+                      <Cell fill="#3b82f6" />
+                      <Cell fill="#f97316" />
+                      <Cell fill="#ef4444" />
+                      <Cell fill="#a855f7" />
+                    </Pie>
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'rgba(15, 23, 42, 0.95)', 
+                        border: '1px solid #3b82f6',
+                        borderRadius: '12px',
+                        padding: '12px 16px',
+                        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.3)'
+                      }}
+                      formatter={(value, name) => {
+                        const total = Object.values(analyticsData.categoryDistribution).reduce((a, b) => a + b, 0);
+                        const percentage = total > 0 ? ((Number(value) / total) * 100).toFixed(1) : '0.0';
+                        return [`${value} (${percentage}%)`, name];
+                      }}
+                      labelStyle={{ color: '#e2e8f0', fontWeight: 600, fontSize: '14px' }}
+                      itemStyle={{ color: '#94a3b8', fontSize: '13px' }}
+                    />
+                    <Legend 
+                      verticalAlign="bottom" 
+                      align="center"
+                      height={60}
+                      iconType="circle"
+                      iconSize={10}
+                      wrapperStyle={{ 
+                        paddingTop: '25px',
+                        fontSize: '14px',
+                        lineHeight: '24px'
+                      }}
+                      formatter={(value, entry) => {
+                        const total = Object.values(analyticsData.categoryDistribution).reduce((a, b) => a + b, 0);
+                        const sliceValue = Number(entry?.payload?.value ?? 0);
+                        const percentage = total > 0 ? ((sliceValue / total) * 100).toFixed(1) : '0.0';
+                        return <span className="text-gray-200 font-medium">{`${value}: ${percentage}%`}</span>;
+                      }}
+                      layout="horizontal"
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </motion.div>
+            )}
+          </div>
+
+          {/* Category Distribution Bar Chart */}
+          {analyticsData?.categoryDistribution && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6 }}
+              className="card p-6 border border-cyan-500/20 bg-gradient-to-br from-slate-800/50 to-slate-900/30"
+            >
+              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <Wind className="w-5 h-5 text-cyan-400" />
+                AQI Category Breakdown
+              </h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={Object.entries(analyticsData.categoryDistribution).map(([key, value]) => ({
+                  category: key.charAt(0).toUpperCase() + key.slice(1),
+                  count: value
+                }))}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#475569" opacity={0.2} />
+                  <XAxis 
+                    dataKey="category" 
+                    stroke="#94a3b8"
+                    tick={{ fill: '#94a3b8' }}
+                    axisLine={{ stroke: '#475569' }}
+                  />
+                  <YAxis 
+                    stroke="#94a3b8"
+                    tick={{ fill: '#94a3b8' }}
+                    axisLine={{ stroke: '#475569' }}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#1e293b', 
+                      border: '1px solid #475569',
                       borderRadius: '8px',
                       color: '#fff'
                     }}
+                    formatter={(value) => [value, 'Count']}
                   />
-                  <Bar dataKey="count" fill="#0ea5e9" radius={[8, 8, 0, 0]} />
+                  <Bar 
+                    dataKey="count" 
+                    fill="#06b6d4" 
+                    radius={[8, 8, 0, 0]}
+                    animationDuration={800}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </motion.div>

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Wind, Cloud, Droplets, Bell, Activity, Wifi } from 'lucide-react';
 import AQIGauge from '../../components/Dashboard/Shared/AQIGauge';
 import SimpleTrendChart from '../../components/Dashboard/Shared/SimpleTrendChart';
+import HealthAdvice from '../../components/Dashboard/Shared/HealthAdvice';
 import MetricCard from '../../components/Dashboard/Shared/MetricCard';
 import { dashboardAPI } from '../../services/api';
 
@@ -124,6 +125,9 @@ function HomeDashboard() {
           </p>
         </div>
       </motion.div>
+
+      {/* Health Advice Panel (always visible) */}
+      <HealthAdvice aqi={data.currentAQI} location={data.location || 'Your Area'} />
 
       {/* Simple Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -285,6 +289,7 @@ function getMockHomeData() {
     aqiStatus: 'GOOD',
     temperature: 22.5,
     humidity: 55,
+    location: 'Mathura',
     hourlyTrend: [
       { time: '00:00', aqi: 65 },
       { time: '03:00', aqi: 58 },
