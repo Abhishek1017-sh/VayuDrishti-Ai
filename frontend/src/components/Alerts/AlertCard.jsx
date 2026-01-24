@@ -97,7 +97,28 @@ function AlertCard({ alert, onAcknowledge, onResolve, onDelete }) {
         {/* Device & Timestamp */}
         <div className="flex items-center justify-between pt-2 border-t border-white/10 text-xs text-gray-400">
           <span>{alert.deviceId}</span>
-          <span>{alert.timestamp instanceof Date ? alert.timestamp.toLocaleString() : alert.timestamp}</span>
+          <span>
+            {alert.timestamp instanceof Date 
+              ? alert.timestamp.toLocaleString('en-US', { 
+                  month: '2-digit', 
+                  day: '2-digit', 
+                  year: 'numeric', 
+                  hour: '2-digit', 
+                  minute: '2-digit',
+                  second: '2-digit',
+                  hour12: false 
+                })
+              : new Date(alert.timestamp).toLocaleString('en-US', { 
+                  month: '2-digit', 
+                  day: '2-digit', 
+                  year: 'numeric', 
+                  hour: '2-digit', 
+                  minute: '2-digit',
+                  second: '2-digit',
+                  hour12: false 
+                })
+            }
+          </span>
         </div>
 
         {/* Actions */}

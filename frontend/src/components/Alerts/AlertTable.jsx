@@ -124,11 +124,32 @@ function AlertTable({ alerts, onAcknowledge, onResolve, onDelete }) {
                   <span className="text-gray-400 font-mono text-xs">{alert.deviceId}</span>
                 </td>
                 <td className="px-4 py-3">
-                  <span className="text-gray-400 text-xs">{alert.timestamp}</span>
+                  <span className="text-gray-400 text-xs">
+                    {alert.timestamp instanceof Date 
+                      ? alert.timestamp.toLocaleString('en-US', { 
+                          month: '2-digit', 
+                          day: '2-digit', 
+                          year: 'numeric', 
+                          hour: '2-digit', 
+                          minute: '2-digit',
+                          second: '2-digit',
+                          hour12: false 
+                        })
+                      : new Date(alert.timestamp).toLocaleString('en-US', { 
+                          month: '2-digit', 
+                          day: '2-digit', 
+                          year: 'numeric', 
+                          hour: '2-digit', 
+                          minute: '2-digit',
+                          second: '2-digit',
+                          hour12: false 
+                        })
+                    }
+                  </span>
                 </td>
                 <td className="px-4 py-3">
                   <span className="text-gray-400 text-xs">
-                    {alert.smokePPM}PPM / {alert.temperature}°C / {alert.humidity}%
+                    {alert.readings?.smoke || alert.smokePPM || 0}PPM / {alert.readings?.temperature || alert.temperature || 0}°C / {alert.readings?.humidity || alert.humidity || 0}%
                   </span>
                 </td>
                 <td className="px-4 py-3">

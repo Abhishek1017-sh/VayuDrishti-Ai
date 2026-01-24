@@ -6,6 +6,7 @@ import AlertFilter from '../../components/Alerts/AlertFilter';
 import AlertTable from '../../components/Alerts/AlertTable';
 import AlertDetailsModal from '../../components/Alerts/AlertDetailsModal';
 import DeviceStatusBadge from '../../components/Alerts/DeviceStatusBadge';
+import RulesModal from '../../components/Alerts/RulesModal';
 import { alertAPI } from '../../services/api';
 
 const AdminAlerts = () => {
@@ -16,11 +17,12 @@ const AdminAlerts = () => {
     severity: [],
     status: [],
     dateRange: 'all',
-    deviceId: ''
+    device: ''
   });
   const [selectedAlerts, setSelectedAlerts] = useState(new Set());
   const [viewMode, setViewMode] = useState('cards'); // 'cards' or 'table'
   const [loading, setLoading] = useState(true);
+  const [showRulesModal, setShowRulesModal] = useState(false);
   const [stats, setStats] = useState({
     critical: 0,
     warning: 0,
@@ -185,7 +187,7 @@ const AdminAlerts = () => {
       if (filters.status.length > 0 && !filters.status.includes(alert.status)) {
         return false;
       }
-      if (filters.deviceId && !alert.deviceId.includes(filters.deviceId)) {
+      if (filters.device && !alert.deviceId.toLowerCase().includes(filters.device.toLowerCase())) {
         return false;
       }
       // Date range filtering logic
@@ -306,7 +308,10 @@ const AdminAlerts = () => {
               <Download size={20} />
               Export CSV
             </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors">
+            <button 
+              onClick={() => setShowRulesModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+            >
               <Settings size={20} />
               Rules
             </button>
@@ -443,7 +448,8 @@ const AdminAlerts = () => {
           {/* Filters */}
           <AlertFilter
             filters={filters}
-            onFiltersChange={setFilters}
+            onFilterChange={setFilters}
+            onReset={() => setFilters({ severity: [], status: [], dateRange: 'all', device: '' })}
           />
 
           {/* Bulk Actions */}
@@ -527,6 +533,12 @@ const AdminAlerts = () => {
           }}
         />
       )}
+
+      {/* Rules Modal */}
+      <RulesModal
+        isOpen={showRulesModal}
+        onClose={() => setShowRulesModal(false)}
+      />
     </div>
   );
 };
