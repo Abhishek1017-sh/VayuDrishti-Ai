@@ -5,6 +5,7 @@
 
 echo "========================================="
 echo "  VayuDrishti - IoT Data Simulator"
+echo "  🔥 HIGH AQI MODE (500+ for ML)"
 echo "========================================="
 echo ""
 
@@ -16,36 +17,29 @@ echo "🎯 Target: $SERVER_URL"
 echo "📱 Device: $DEVICE_ID"
 echo ""
 
-# Function to generate random sensor data
+# Function to generate HIGH AQI sensor data (500+ for ML testing)
 generate_data() {
-    # Simulate realistic sensor readings
-    MQ=$((300 + RANDOM % 600))          # 300-900 range
-    TEMP=$(echo "20 + $RANDOM % 15" | bc)  # 20-35°C
-    HUM=$(echo "40 + $RANDOM % 40" | bc)   # 40-80%
+    # Simulate CRITICAL smoke levels for ML FIRE/POLLUTION detection
+    # MQ must be 0-1023 (Arduino ADC range)
+    # Generate values from 901-1023 for varying AQI (501-602)
+    MQ=$((901 + RANDOM % 123))          # 901-1023 range (ensures AQI varies)
     
-    # Calculate AQI
-    if [ $MQ -lt 400 ]; then
-        AQI=$((($MQ - 300) * 50 / 100))
-        STATUS="GOOD"
-    elif [ $MQ -lt 500 ]; then
-        AQI=$((50 + ($MQ - 400) * 50 / 100))
-        STATUS="MODERATE"
-    elif [ $MQ -lt 600 ]; then
-        AQI=$((100 + ($MQ - 500) * 100 / 100))
-        STATUS="POOR"
-    elif [ $MQ -lt 700 ]; then
-        AQI=$((200 + ($MQ - 600) * 100 / 100))
-        STATUS="VERY_POOR"
-    else
-        AQI=$((300 + ($MQ - 700) * 200 / 200))
-        STATUS="SEVERE"
-    fi
+    # Temperature: -10 to 60°C (DHT11 valid range)
+    # Higher temps indicate FIRE
+    TEMP=$((30 + RANDOM % 31))          # 30-60 °C (warm to hot)
     
-    echo "{\"deviceId\":\"$DEVICE_ID\",\"mq\":$MQ,\"aqi\":$AQI,\"temperature\":$TEMP,\"humidity\":$HUM,\"status\":\"$STATUS\"}"
+    # Humidity: 0-100% (DHT11 valid range)
+    # Lower humidity indicates FIRE
+    HUM=$((10 + RANDOM % 71))           # 10-80%
+    
+    # Let backend calculate AQI from MQ value - don't send AQI
+    # This ensures real-time calculation and varying values
+    echo "{\"deviceId\":\"$DEVICE_ID\",\"mq\":$MQ,\"temperature\":$TEMP,\"humidity\":$HUM}"
 }
 
 # Send data in loop
-echo "📊 Sending test data every 3 seconds..."
+echo "📊 Sending CRITICAL AQI data (500+) every 3 seconds..."
+echo "   🤖 ML Classification will trigger (FIRE vs POLLUTION)"
 echo "   Press Ctrl+C to stop"
 echo ""
 

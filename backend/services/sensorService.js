@@ -178,26 +178,40 @@ exports.validateIoTSensorData = (data) => {
 };
 
 /**
- * Convert MQ sensor reading to AQI-like score (0-500)
+ * Convert MQ sensor reading to AQI-like score (0-1100+)
  * Based on the custom mapping for MQ smoke/gas sensor
+ * Supports hazardous levels above 500 for critical alerts
  */
 exports.mqToAQI = (mqValue) => {
-  // Clamp input to valid range
+  // Clamp input to valid sensor range
   const clampedMQ = Math.max(0, Math.min(1023, mqValue));
   
-  // Map MQ reading (300-900) to AQI (0-500)
-  // 300 = clean air baseline
-  // 900 = severe pollution
-  const minMQ = 300;
-  const maxMQ = 900;
-  const minAQI = 0;
-  const maxAQI = 500;
+  // Extended mapping for higher AQI values
+  // MQ 300 = AQI 0
+  // MQ 660 = AQI 300
+  // MQ 900 = AQI 800
+  // MQ 1023 = AQI 1100+
   
-  // Linear mapping
-  let aqi = ((clampedMQ - minMQ) / (maxMQ - minMQ)) * (maxAQI - minAQI) + minAQI;
+  let aqi;
   
-  // Clamp to 0-500 range
-  aqi = Math.max(minAQI, Math.min(maxAQI, aqi));
+  if (clampedMQ < 660) {
+    // Low to moderate range: MQ 300-660 → AQI 0-300
+    const minMQ = 300;
+    const maxMQ = 660;
+    const minAQI = 0;
+    const maxAQI = 300;
+    aqi = ((clampedMQ - minMQ) / (maxMQ - minMQ)) * (maxAQI - minAQI) + minAQI;
+  } else {
+    // High to critical range: MQ 660-1023 → AQI 300-1100
+    const minMQ = 660;
+    const maxMQ = 1023;
+    const minAQI = 300;
+    const maxAQI = 1100;
+    aqi = ((clampedMQ - minMQ) / (maxMQ - minMQ)) * (maxAQI - minAQI) + minAQI;
+  }
+  
+  // No upper clamp - allow extreme values
+  aqi = Math.max(0, aqi);
   
   return Math.round(aqi);
 };
@@ -210,7 +224,9 @@ exports.getAQIStatus = (aqi) => {
   if (aqi <= 100) return 'MODERATE';
   if (aqi <= 200) return 'POOR';
   if (aqi <= 300) return 'VERY_POOR';
-  return 'SEVERE';
+  if (aqi <= 500) return 'SEVERE';
+  if (aqi <= 800) return 'HAZARDOUS';
+  return 'EMERGENCY'; // Above 800 - extreme emergency
 };
 
 /**
@@ -221,7 +237,9 @@ exports.getAQIColor = (aqi) => {
   if (aqi <= 100) return '#FFFF00'; // Yellow
   if (aqi <= 200) return '#FF7E00'; // Orange
   if (aqi <= 300) return '#FF0000'; // Red
-  return '#8F3F97'; // Purple
+  if (aqi <= 500) return '#8F3F97'; // Purple
+  if (aqi <= 800) return '#7E0023'; // Maroon
+  return '#000000'; // Black - Emergency
 };
 
 /**

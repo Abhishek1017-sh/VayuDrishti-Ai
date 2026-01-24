@@ -12,6 +12,7 @@ const alertRoutes = require('./routes/alertRoutes');
 const automationRoutes = require('./routes/automationRoutes');
 const devicesRoutes = require('./routes/devicesRoutes');
 const droneRoutes = require('./routes/droneRoutes');
+const mlRoutes = require('./routes/mlRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 9000;
@@ -35,7 +36,13 @@ app.get('/health', (req, res) => {
   res.json({ 
     status: 'OK', 
     timestamp: new Date().toISOString(),
-    service: 'VayuDrishti AI Backend'
+    service: 'VayuDrishti AI Backend',
+    features: {
+      mlEnabled: true,
+      fireDetection: true,
+      pollutionDetection: true,
+      automatedActions: true
+    }
   });
 });
 
@@ -47,6 +54,7 @@ app.use('/api/alerts', alertRoutes);
 app.use('/api/automation', automationRoutes);
 app.use('/api/devices', devicesRoutes);
 app.use('/api/drone', droneRoutes);
+app.use('/api/ml', mlRoutes);
 
 // 404 handler
 app.use((req, res) => {
@@ -67,12 +75,13 @@ app.use((err, req, res, next) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log('='.repeat(50));
+  console.log('='.repeat(60));
   console.log(`🚀 VayuDrishti AI Backend Server Running`);
   console.log(`📡 Port: ${PORT}`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🤖 ML-Enabled: FIRE vs POLLUTION Detection`);
   console.log(`⏰ Started at: ${new Date().toISOString()}`);
-  console.log('='.repeat(50));
+  console.log('='.repeat(60));
 });
 
 module.exports = app;

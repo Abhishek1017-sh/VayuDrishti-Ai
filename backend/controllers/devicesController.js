@@ -5,6 +5,7 @@
 
 const Device = require('../models/Device');
 const SensorData = require('../models/SensorData');
+const dataStore = require('../utils/dataStore');
 
 /**
  * Get all devices with their latest sensor data
@@ -50,12 +51,41 @@ exports.getAllDevices = async (req, res) => {
     const enrichedDevices = await Promise.all(
       devices.map(async (device) => {
         try {
-          const latestReading = await SensorData.findOne({ deviceId: device.deviceId })
-            .sort({ createdAt: -1 })
-            .lean();
+          let latestReading = null;
+          let useMemoryStorage = false;
+          
+          // Try MongoDB first
+          try {
+            latestReading = await SensorData.findOne({ deviceId: device.deviceId })
+              .sort({ createdAt: -1 })
+              .lean();
+              
+            // Check if MongoDB data is stale (older than 2 minutes)
+            if (latestReading) {
+              const dataAge = Date.now() - new Date(latestReading.createdAt).getTime();
+              if (dataAge > 2 * 60 * 1000) {
+                console.log(`⚠️  MongoDB data is stale (${Math.round(dataAge/1000)}s old), using in-memory storage`);
+                useMemoryStorage = true;
+              }
+            } else {
+              useMemoryStorage = true;
+            }
+          } catch (dbError) {
+            console.log('⚠️  MongoDB query failed, using in-memory storage');
+            useMemoryStorage = true;
+          }
+          
+          // Use in-memory storage if MongoDB data is stale or unavailable
+          if (useMemoryStorage) {
+            const memoryReading = dataStore.getLatestSensorReading();
+            if (memoryReading && memoryReading.deviceId === device.deviceId) {
+              latestReading = memoryReading;
+            }
+          }
 
           const now = Date.now();
-          const lastSeen = new Date(device.lastSeen || latestReading?.createdAt).getTime();
+          const timestamp = latestReading?.createdAt || latestReading?.timestamp || device.lastSeen;
+          const lastSeen = timestamp ? new Date(timestamp).getTime() : now - (10 * 60 * 1000);
           const isOnline = (now - lastSeen) < 5 * 60 * 1000; // 5 minutes
 
           return {
@@ -67,7 +97,7 @@ exports.getAllDevices = async (req, res) => {
             temperature: latestReading?.temperature || 0,
             humidity: latestReading?.humidity || 0,
             status: isOnline ? 'ONLINE' : 'OFFLINE',
-            lastUpdated: latestReading ? timeAgo(latestReading.createdAt) : 'N/A'
+            lastUpdated: latestReading ? timeAgo(timestamp) : 'N/A'
           };
         } catch (err) {
           return {

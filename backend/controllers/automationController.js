@@ -270,6 +270,161 @@ const initializeDefaultContacts = async (req, res) => {
   }
 };
 
+// Activate sprinkler system
+const activateSprinklers = async (req, res) => {
+  try {
+    const { deviceId, duration = 180, reason = 'Pollution mitigation' } = req.body;
+
+    if (!deviceId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required field: deviceId'
+      });
+    }
+
+    const automationLog = await AutomationLog.create({
+      deviceId,
+      action: 'SPRINKLERS_ACTIVATED',
+      duration,
+      reason,
+      triggeredBy: 'ML_POLLUTION_DETECTION',
+      status: 'active',
+      startTime: new Date(),
+      estimatedEndTime: new Date(Date.now() + duration * 1000)
+    });
+
+    console.log(`💦 Sprinklers activated for device ${deviceId}, duration: ${duration}s`);
+
+    res.json({
+      success: true,
+      message: 'Sprinklers activated successfully',
+      deviceId,
+      duration,
+      automationLogId: automationLog._id,
+      estimatedCompletion: automationLog.estimatedEndTime
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+// Deactivate sprinkler system
+const deactivateSprinklers = async (req, res) => {
+  try {
+    const { deviceId } = req.body;
+
+    if (!deviceId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required field: deviceId'
+      });
+    }
+
+    await AutomationLog.updateMany(
+      { deviceId, action: 'SPRINKLERS_ACTIVATED', status: 'active' },
+      {
+        status: 'completed',
+        endTime: new Date()
+      }
+    );
+
+    console.log(`💦 Sprinklers deactivated for device ${deviceId}`);
+
+    res.json({
+      success: true,
+      message: 'Sprinklers deactivated successfully',
+      deviceId
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+// Enable ventilation system
+const enableVentilation = async (req, res) => {
+  try {
+    const { deviceId, mode = 'safe_mode', fanSpeed = 80 } = req.body;
+
+    if (!deviceId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required field: deviceId'
+      });
+    }
+
+    const automationLog = await AutomationLog.create({
+      deviceId,
+      action: 'VENTILATION_ENABLED',
+      mode,
+      fanSpeed,
+      triggeredBy: 'ML_POLLUTION_DETECTION',
+      status: 'active',
+      startTime: new Date()
+    });
+
+    console.log(`🌀 Ventilation enabled for device ${deviceId}, mode: ${mode}, speed: ${fanSpeed}%`);
+
+    res.json({
+      success: true,
+      message: 'Ventilation enabled successfully',
+      deviceId,
+      mode,
+      fanSpeed,
+      automationLogId: automationLog._id
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+// Disable ventilation system
+const disableVentilation = async (req, res) => {
+  try {
+    const { deviceId } = req.body;
+
+    if (!deviceId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required field: deviceId'
+      });
+    }
+
+    await AutomationLog.updateMany(
+      { deviceId, action: 'VENTILATION_ENABLED', status: 'active' },
+      {
+        status: 'completed',
+        endTime: new Date()
+      }
+    );
+
+    console.log(`🌀 Ventilation disabled for device ${deviceId}`);
+
+    res.json({
+      success: true,
+      message: 'Ventilation disabled successfully',
+      deviceId
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getAutomationLogs,
   triggerAutomation,
@@ -278,5 +433,9 @@ module.exports = {
   createFireBrigadeContact,
   updateFireBrigadeContact,
   deleteFireBrigadeContact,
-  initializeDefaultContacts
+  initializeDefaultContacts,
+  activateSprinklers,
+  deactivateSprinklers,
+  enableVentilation,
+  disableVentilation
 };

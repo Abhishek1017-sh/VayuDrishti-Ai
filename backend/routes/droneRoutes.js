@@ -1,17 +1,40 @@
 /**
  * Drone Routes
  * API endpoints for drone system control
+ * Updated for ML-based FIRE/POLLUTION detection
  */
 
 const express = require('express');
 const router = express.Router();
 const automationService = require('../services/automationService');
+const droneController = require('../controllers/droneController');
 
 /**
  * POST /api/drone/activate
- * Manually activate drone system
+ * Activate drone for pollution mitigation (ML-triggered or manual)
  */
-router.post('/activate', async (req, res) => {
+router.post('/activate', droneController.activateDrone);
+
+/**
+ * POST /api/drone/deactivate
+ * Deactivate drone system
+ */
+router.post('/deactivate', droneController.deactivateDrone);
+
+/**
+ * GET /api/drone/status/:zone
+ * Get drone status for a specific zone
+ */
+router.get('/status/:zone', droneController.getDroneStatus);
+
+/**
+ * POST /api/drone/emergency-stop
+ * Emergency stop for all active drones
+ */
+router.post('/emergency-stop', droneController.emergencyStop);
+
+// Legacy endpoint for backward compatibility
+router.post('/activate-legacy', async (req, res) => {
   try {
     const { zone, deviceId, aqi } = req.body;
     

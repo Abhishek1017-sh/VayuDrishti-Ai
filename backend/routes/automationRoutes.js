@@ -16,4 +16,12 @@ router.delete('/fire-brigade/:zone', automationController.deleteFireBrigadeConta
 // Initialize default contacts
 router.post('/fire-brigade/init/defaults', automationController.initializeDefaultContacts);
 
+// Sprinkler System Control
+router.post('/sprinklers/activate', automationController.activateSprinklers);
+router.post('/sprinklers/deactivate', automationController.deactivateSprinklers);
+
+// Ventilation System Control
+router.post('/ventilation/enable', automationController.enableVentilation);
+router.post('/ventilation/disable', automationController.disableVentilation);
+
 module.exports = router;

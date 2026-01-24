@@ -116,12 +116,29 @@ exports.receiveSensorData = async (req, res) => {
 exports.getLatestSensorData = async (req, res) => {
   try {
     let latestReading;
+    let useMemoryStorage = false;
     
     // Try MongoDB first
     try {
       latestReading = await SensorData.findOne().sort({ createdAt: -1 });
+      
+      // Check if MongoDB data is stale (older than 2 minutes)
+      if (latestReading) {
+        const dataAge = Date.now() - new Date(latestReading.createdAt).getTime();
+        if (dataAge > 2 * 60 * 1000) {
+          console.log(`⚠️  MongoDB sensor data is stale (${Math.round(dataAge/1000)}s old), using in-memory storage`);
+          useMemoryStorage = true;
+        }
+      } else {
+        useMemoryStorage = true;
+      }
     } catch (dbError) {
       console.log('⚠️  MongoDB not available, using in-memory data');
+      useMemoryStorage = true;
+    }
+    
+    // Use in-memory storage if MongoDB data is stale or unavailable
+    if (useMemoryStorage) {
       latestReading = dataStore.getLatestSensorReading();
     }
     

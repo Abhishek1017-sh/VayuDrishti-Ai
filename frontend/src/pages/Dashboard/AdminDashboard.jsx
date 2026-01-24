@@ -17,6 +17,12 @@ function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [syncTime, setSyncTime] = useState(new Date());
+  const [latestSensor, setLatestSensor] = useState(null);
+  const [highestAQIRecord, setHighestAQIRecord] = useState(() => {
+    // Load from localStorage on mount
+    const saved = localStorage.getItem('highestAQIRecord');
+    return saved ? JSON.parse(saved) : { aqi: 0, zone: 'N/A', timestamp: null };
+  });
 
   useEffect(() => {
     fetchAdminData();
@@ -41,18 +47,62 @@ function AdminDashboard() {
       let alertsData = [];
       let adminDataResponse = null;
       let droneStatusData = null;
-      let latestSensor = null;
+      let sensorData = null;
 
       if (sensorRes?.ok) {
-        const sensorData = await sensorRes.json();
-        latestSensor = sensorData?.data;
+        const response = await sensorRes.json();
+        sensorData = response?.data;
+        setLatestSensor(sensorData); // Store in state for persistence
+        console.log('🔴 Latest Sensor Data:', sensorData); // DEBUG
+        
+        // Update highest AQI record if current value is higher
+        if (sensorData && sensorData.aqi > highestAQIRecord.aqi) {
+          const newRecord = {
+            aqi: sensorData.aqi,
+            zone: 'Zone-1',
+            timestamp: new Date().toISOString()
+          };
+          setHighestAQIRecord(newRecord);
+          localStorage.setItem('highestAQIRecord', JSON.stringify(newRecord)); // Persist to localStorage
+          console.log('🏆 NEW HIGHEST AQI RECORD:', sensorData.aqi);
+        }
       }
 
       if (devicesRes?.ok) {
         const data = await devicesRes.json();
         devicesData = Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : []);
       } else {
-        devicesData = getMockDevices(latestSensor);
+        devicesData = getMockDevices(sensorData);
+      }
+
+      // CRITICAL FIX: Update device with real-time sensor data
+      if (sensorData && devicesData.length > 0) {
+        // Find the device by deviceId from sensor data, or use first device
+        let targetDevice = devicesData.find(d => d.deviceId === sensorData.deviceId);
+        
+        if (!targetDevice) {
+          // Try common device names
+          targetDevice = devicesData.find(d => 
+            d.deviceId === 'ESP_NodeMCU' || 
+            d.deviceId === 'classroom-01' ||
+            d.deviceId === 'test-device'
+          );
+        }
+        
+        if (!targetDevice && devicesData.length > 0) {
+          // Fallback to first device
+          targetDevice = devicesData[0];
+        }
+        
+        // Update with latest sensor data
+        if (targetDevice) {
+          targetDevice.aqi = sensorData.aqi;
+          targetDevice.mq = sensorData.mq;
+          targetDevice.temperature = sensorData.temperature;
+          targetDevice.humidity = sensorData.humidity;
+          targetDevice.status = sensorData.status || 'ONLINE';
+          targetDevice.lastUpdated = 'now';
+        }
       }
 
       if (alertsRes?.ok) {
@@ -125,27 +175,35 @@ function AdminDashboard() {
   const criticalAlerts = alerts.filter(a => a.severity === 'CRITICAL' || a.severity === 'Emergency').length;
   const emergencyAlerts = alerts.filter(a => a.severity === 'Emergency').length;
   
-  const highestAQIDevice = devices.reduce((max, d) => 
-    (d.aqi > max.aqi) ? d : max, { aqi: 0, location: 'N/A', temperature: 0, humidity: 0, mq: 0, lastUpdated: 'N/A' }
-  );
+  // CRITICAL: Always use latestSensor for real-time data, fallback to devices only if latestSensor is null
+  const highestAQIDevice = (latestSensor && latestSensor.aqi !== undefined) 
+    ? latestSensor 
+    : (devices.length > 0 
+        ? devices.reduce((max, d) => (d.aqi > max.aqi) ? d : max, devices[0])
+        : { aqi: 0, location: 'N/A', temperature: 0, humidity: 0, mq: 0, lastUpdated: 'N/A' }
+      );
 
-  // Zone-wise AQI data
+  // Zone-wise AQI data - ALWAYS use latest sensor for real-time updates
   const zoneWiseAQI = devices.reduce((acc, device) => {
     const zone = device.zone || 'Unknown';
     const existing = acc.find(z => z.zone === zone);
+    // Always use latestSensor if available for any Zone-1 device
+    const deviceAqi = (zone === 'Zone-1' && latestSensor && latestSensor.aqi !== undefined) 
+      ? latestSensor.aqi 
+      : device.aqi;
     if (existing) {
-      existing.total += device.aqi;
+      existing.total += deviceAqi;
       existing.count++;
       existing.aqi = existing.total / existing.count;
     } else {
-      acc.push({ zone, aqi: device.aqi, total: device.aqi, count: 1 });
+      acc.push({ zone, aqi: deviceAqi, total: deviceAqi, count: 1 });
     }
     return acc;
   }, []).sort((a, b) => b.aqi - a.aqi);
 
   const highestAQIZone = zoneWiseAQI.length > 0 
     ? zoneWiseAQI[0]
-    : { zone: 'N/A', aqi: 0 };
+    : { zone: 'Zone-1', aqi: latestSensor?.aqi || 0 };
 
   const getAQISeverity = (aqi) => {
     if (aqi >= 300) return { label: 'Hazardous', badge: 'bg-red-500/20 text-red-200', color: 'text-red-300' };
@@ -155,8 +213,14 @@ function AdminDashboard() {
     return { label: 'Good', badge: 'bg-green-500/20 text-green-200', color: 'text-green-200' };
   };
 
-  const primaryAqi = highestAQIDevice?.aqi || data?.aqi?.value || 0;
+  // LIVE AQI STREAM: Always use current sensor data (latestSensor)
+  const primaryAqi = latestSensor?.aqi || data?.aqi?.value || 0;
   const primarySeverity = getAQISeverity(primaryAqi);
+  
+  // For display metrics, use highestAQIDevice which could be from devices or latestSensor
+  const displayDevice = highestAQIDevice;
+  
+  console.log('🟢 LIVE AQI (current):', primaryAqi, '| HIGHEST AQI (max):', highestAQIRecord.aqi); // DEBUG
 
   const formatSyncTime = (date) => {
     return date.toLocaleTimeString('en-US', { 
@@ -279,11 +343,11 @@ function AdminDashboard() {
         />
         <SummaryMetricCard
           title="Highest AQI Zone"
-          value={highestAQIZone.aqi.toFixed(0)}
+          value={highestAQIRecord.aqi.toFixed(0)}
           icon="⚠️"
           bgGradient="from-orange-500/20 to-orange-700/10"
           borderColor="border-orange-500/30"
-          subtext={highestAQIZone.zone}
+          subtext={highestAQIRecord.zone}
         />
         <SummaryMetricCard
           title="Critical Alerts"
@@ -332,7 +396,7 @@ function AdminDashboard() {
                   </span>
                   <div className="text-xs text-gray-400 flex items-center gap-2">
                     <span className="w-2 h-2 bg-cyan-400 rounded-full" />
-                    {highestAQIDevice?.location || 'Unknown location'}
+                    {latestSensor?.deviceId ? `Location: ${latestSensor.deviceId}` : (displayDevice?.location || 'Unknown location')}
                   </div>
                   <div className="text-xs text-gray-500 flex items-center gap-2">
                     <Clock className="w-3 h-3" />
@@ -341,9 +405,9 @@ function AdminDashboard() {
                 </div>
               </div>
 
-              <LiveMetric label="Temperature" value={highestAQIDevice?.temperature || 0} suffix="°C" color="text-gray-100" />
-              <LiveMetric label="Humidity" value={highestAQIDevice?.humidity || 0} suffix="%" color="text-gray-100" />
-              <LiveMetric label="MQ Index" value={highestAQIDevice?.mq || 0} suffix="" color="text-gray-100" />
+              <LiveMetric label="Temperature" value={latestSensor?.temperature || displayDevice?.temperature || 0} suffix="°C" color="text-gray-100" />
+              <LiveMetric label="Humidity" value={latestSensor?.humidity || displayDevice?.humidity || 0} suffix="%" color="text-gray-100" />
+              <LiveMetric label="MQ Index" value={latestSensor?.mq || displayDevice?.mq || 0} suffix="" color="text-gray-100" />
             </div>
 
             <div className="mt-6 h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
