@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Building2, FileText, TrendingUp, AlertTriangle, BarChart3, Download } from 'lucide-react';
+import { Building2, FileText, TrendingUp, TrendingDown, AlertTriangle, BarChart3, Download, Factory, Wind, Bell, CheckCircle, Zap, Droplet, StopCircle } from 'lucide-react';
 import StatCard from '../../components/Dashboard/Shared/StatCard';
 import ComplianceIndicator from '../../components/Dashboard/Shared/ComplianceIndicator';
 import MetricCard from '../../components/Dashboard/Shared/MetricCard';
@@ -219,51 +219,404 @@ function IndustryDashboard() {
         <h2 className="text-2xl font-bold text-white mb-4">Facility Metrics</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <MetricCard
-            label="PM2.5"
-            value={data.pm25}
-            unit="µg/m³"
+            label="MQ Index"
+            value={data.mq}
+            unit="ppm"
+            icon={AlertTriangle}
+            color="from-orange-500/20 to-orange-700/10"
+            threshold={100}
+          />
+          <MetricCard
+            label="Humidity"
+            value={data.humidity}
+            unit="%"
             icon={AlertTriangle}
             color="from-blue-500/20 to-blue-700/10"
+            threshold={70}
+          />
+          <MetricCard
+            label="Temperature"
+            value={data.temperature}
+            unit="°C"
+            icon={AlertTriangle}
+            color="from-red-500/20 to-red-700/10"
             threshold={35}
           />
           <MetricCard
-            label="PM10"
-            value={data.pm10}
-            unit="µg/m³"
-            icon={AlertTriangle}
-            color="from-blue-500/20 to-blue-700/10"
-            threshold={150}
-          />
-          <MetricCard
-            label="SO₂"
-            value={data.so2}
-            unit="ppb"
+            label="AQI"
+            value={data.averageAQI}
+            unit=""
             icon={AlertTriangle}
             color="from-purple-500/20 to-purple-700/10"
-            threshold={200}
-          />
-          <MetricCard
-            label="NO₂"
-            value={data.no2}
-            unit="ppb"
-            icon={AlertTriangle}
-            color="from-red-500/20 to-red-700/10"
-            threshold={100}
+            threshold={150}
           />
         </div>
       </motion.div>
 
-      {/* Current AQI and Alerts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex justify-center">
-          <div>
-            <h3 className="text-lg font-semibold text-white mb-4">Current Air Quality</h3>
-            <AQIGauge aqi={data.averageAQI} size="medium" status={data.aqiStatus} />
+      {/* Facility-Wide Metrics Bar */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+        <div className="bg-gradient-to-r from-slate-800 to-slate-900 rounded-xl p-4 border border-slate-700 mb-6">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-2">
+              <Factory className="w-5 h-5 text-cyan-400" />
+              <span className="font-bold text-white">FACILITY_001: Delhi Industrial Complex</span>
+            </div>
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="flex items-center gap-2 bg-slate-700/50 px-3 py-1.5 rounded-lg">
+                <span className="text-slate-400 text-sm">Total Zones:</span>
+                <span className="font-bold text-white">5</span>
+              </div>
+              <div className="flex items-center gap-2 bg-slate-700/50 px-3 py-1.5 rounded-lg">
+                <span className="text-slate-400 text-sm">Active Devices:</span>
+                <span className="font-bold text-green-400">3</span>
+              </div>
+              <div className="flex items-center gap-2 bg-slate-700/50 px-3 py-1.5 rounded-lg">
+                <span className="text-slate-400 text-sm">Avg AQI:</span>
+                <span className="font-bold text-orange-400">{data.averageAQI}</span>
+              </div>
+              <div className="flex items-center gap-2 bg-slate-700/50 px-3 py-1.5 rounded-lg">
+                <span className="text-slate-400 text-sm">Compliance:</span>
+                <span className="font-bold text-green-400">{data.compliancePercentage}%</span>
+              </div>
+              <div className="flex items-center gap-2 bg-red-500/20 px-3 py-1.5 rounded-lg border border-red-500/30">
+                <AlertTriangle className="w-4 h-4 text-red-400" />
+                <span className="text-red-400 text-sm font-bold">Critical Alerts: 2</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Multi-Zone Overview */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+        <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+          <Wind className="w-6 h-6 text-cyan-400" />
+          Live Zone Monitoring
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
+          {/* Production Zone A */}
+          <div className="bg-gradient-to-br from-orange-500/10 to-red-500/5 rounded-xl p-4 border border-orange-500/30 hover:border-orange-500/50 transition-all cursor-pointer">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-white text-sm">Production A</h3>
+              <span className="bg-orange-500/20 text-orange-400 text-xs px-2 py-1 rounded-full font-bold">⚠️ WARNING</span>
+            </div>
+            <div className="mb-3">
+              <div className="flex items-baseline gap-2">
+                <span className="text-4xl font-bold text-orange-400">145</span>
+                <span className="text-slate-400 text-sm">AQI</span>
+              </div>
+              <div className="flex items-center gap-1 mt-1">
+                <TrendingUp className="w-3 h-3 text-red-400" />
+                <span className="text-red-400 text-xs">↑ Increasing</span>
+              </div>
+            </div>
+            <div className="space-y-1.5 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">MQ Index:</span>
+                <span className="font-bold text-white">85 ppm</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Temp:</span>
+                <span className="font-bold text-white">28°C</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Humidity:</span>
+                <span className="font-bold text-white">62%</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Devices:</span>
+                <span className="font-bold text-green-400">1 Active</span>
+              </div>
+            </div>
+            <div className="mt-3 pt-3 border-t border-orange-500/20">
+              <div className="text-xs text-slate-400 mb-1">Last Hour Trend</div>
+              <div className="text-orange-400 text-lg">▁▂▃▅▆▅▃</div>
+            </div>
+          </div>
+
+          {/* Production Zone B */}
+          <div className="bg-gradient-to-br from-red-500/10 to-red-500/5 rounded-xl p-4 border border-red-500/30 hover:border-red-500/50 transition-all cursor-pointer">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-white text-sm">Production B</h3>
+              <span className="bg-red-500/20 text-red-400 text-xs px-2 py-1 rounded-full font-bold">⚠️ WARNING</span>
+            </div>
+            <div className="mb-3">
+              <div className="flex items-baseline gap-2">
+                <span className="text-4xl font-bold text-red-400">178</span>
+                <span className="text-slate-400 text-sm">AQI</span>
+              </div>
+              <div className="flex items-center gap-1 mt-1">
+                <TrendingUp className="w-3 h-3 text-red-400" />
+                <span className="text-red-400 text-xs">↑ Increasing</span>
+              </div>
+            </div>
+            <div className="space-y-1.5 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">MQ Index:</span>
+                <span className="font-bold text-white">92 ppm</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Temp:</span>
+                <span className="font-bold text-white">30°C</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Humidity:</span>
+                <span className="font-bold text-white">58%</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Devices:</span>
+                <span className="font-bold text-green-400">1 Active</span>
+              </div>
+            </div>
+            <div className="mt-3 pt-3 border-t border-red-500/20">
+              <div className="text-xs text-slate-400 mb-1">Last Hour Trend</div>
+              <div className="text-red-400 text-lg">▃▄▅▆▆▅▄</div>
+            </div>
+          </div>
+
+          {/* Warehouse */}
+          <div className="bg-gradient-to-br from-green-500/10 to-green-500/5 rounded-xl p-4 border border-green-500/30 hover:border-green-500/50 transition-all cursor-pointer">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-white text-sm">Warehouse</h3>
+              <span className="bg-green-500/20 text-green-400 text-xs px-2 py-1 rounded-full font-bold">✅ NORMAL</span>
+            </div>
+            <div className="mb-3">
+              <div className="flex items-baseline gap-2">
+                <span className="text-4xl font-bold text-green-400">89</span>
+                <span className="text-slate-400 text-sm">AQI</span>
+              </div>
+              <div className="flex items-center gap-1 mt-1">
+                <span className="text-green-400 text-xs">→ Stable</span>
+              </div>
+            </div>
+            <div className="space-y-1.5 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">MQ Index:</span>
+                <span className="font-bold text-white">45 ppm</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Temp:</span>
+                <span className="font-bold text-white">22°C</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Humidity:</span>
+                <span className="font-bold text-white">55%</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Devices:</span>
+                <span className="font-bold text-green-400">1 Active</span>
+              </div>
+            </div>
+            <div className="mt-3 pt-3 border-t border-green-500/20">
+              <div className="text-xs text-slate-400 mb-1">Last Hour Trend</div>
+              <div className="text-green-400 text-lg">▂▂▂▂▂▂▂</div>
+            </div>
+          </div>
+
+          {/* Loading Dock */}
+          <div className="bg-gradient-to-br from-orange-500/10 to-orange-500/5 rounded-xl p-4 border border-orange-500/30 hover:border-orange-500/50 transition-all cursor-pointer">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-white text-sm">Loading Dock</h3>
+              <span className="bg-orange-500/20 text-orange-400 text-xs px-2 py-1 rounded-full font-bold">⚠️ WARNING</span>
+            </div>
+            <div className="mb-3">
+              <div className="flex items-baseline gap-2">
+                <span className="text-4xl font-bold text-orange-400">156</span>
+                <span className="text-slate-400 text-sm">AQI</span>
+              </div>
+              <div className="flex items-center gap-1 mt-1">
+                <TrendingDown className="w-3 h-3 text-green-400" />
+                <span className="text-green-400 text-xs">↓ Decreasing</span>
+              </div>
+            </div>
+            <div className="space-y-1.5 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">MQ Index:</span>
+                <span className="font-bold text-white">78 ppm</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Temp:</span>
+                <span className="font-bold text-white">25°C</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Humidity:</span>
+                <span className="font-bold text-white">60%</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Devices:</span>
+                <span className="font-bold text-slate-400">0 Active</span>
+              </div>
+            </div>
+            <div className="mt-3 pt-3 border-t border-orange-500/20">
+              <div className="text-xs text-slate-400 mb-1">Last Hour Trend</div>
+              <div className="text-orange-400 text-lg">▂▃▄▅▄▃▂</div>
+            </div>
+          </div>
+
+          {/* Outdoor Perimeter */}
+          <div className="bg-gradient-to-br from-yellow-500/10 to-yellow-500/5 rounded-xl p-4 border border-yellow-500/30 hover:border-yellow-500/50 transition-all cursor-pointer">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-white text-sm">Outdoor</h3>
+              <span className="bg-yellow-500/20 text-yellow-400 text-xs px-2 py-1 rounded-full font-bold">✅ NORMAL</span>
+            </div>
+            <div className="mb-3">
+              <div className="flex items-baseline gap-2">
+                <span className="text-4xl font-bold text-yellow-400">112</span>
+                <span className="text-slate-400 text-sm">AQI</span>
+              </div>
+              <div className="flex items-center gap-1 mt-1">
+                <span className="text-slate-400 text-xs">→ Stable</span>
+              </div>
+            </div>
+            <div className="space-y-1.5 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">MQ Index:</span>
+                <span className="font-bold text-white">52 ppm</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Temp:</span>
+                <span className="font-bold text-white">24°C</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Humidity:</span>
+                <span className="font-bold text-white">65%</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Devices:</span>
+                <span className="font-bold text-slate-400">0 Active</span>
+              </div>
+            </div>
+            <div className="mt-3 pt-3 border-t border-yellow-500/20">
+              <div className="text-xs text-slate-400 mb-1">Last Hour Trend</div>
+              <div className="text-yellow-400 text-lg">▂▂▃▃▂▂▂</div>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Compliance Status & Real-Time Alerts */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Compliance Dashboard */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl p-5 border border-slate-700">
+          <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+            <CheckCircle className="w-5 h-5 text-green-400" />
+            Compliance Dashboard
+          </h3>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400 text-sm">Compliant Zones</span>
+              <span className="text-green-400 font-bold text-lg">3/5</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400 text-sm">Warning Zones</span>
+              <span className="text-orange-400 font-bold text-lg">2/5</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400 text-sm">Critical Zones</span>
+              <span className="text-red-400 font-bold text-lg">0/5</span>
+            </div>
+            <div className="pt-4 border-t border-slate-700">
+              <div className="text-xs font-semibold text-slate-300 mb-2">Today's Violations:</div>
+              <div className="space-y-1 text-xs text-slate-400">
+                <div>• Production A: 2 violations</div>
+                <div>• Loading Dock: 1 violation</div>
+              </div>
+            </div>
+            <div className="pt-4 border-t border-slate-700 text-xs space-y-1">
+              <div className="flex justify-between">
+                <span className="text-slate-400">Next Inspection:</span>
+                <span className="text-white font-semibold">Jan 30, 2026</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Report Due:</span>
+                <span className="text-white font-semibold">Feb 1, 2026</span>
+              </div>
+            </div>
           </div>
         </motion.div>
 
-        <AlertManager alerts={data.alerts} maxItems={6} />
+        {/* Real-Time Alert Feed */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="lg:col-span-2 bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl p-5 border border-slate-700">
+          <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+            <Bell className="w-5 h-5 text-red-400 animate-pulse" />
+            Live Alerts Feed
+          </h3>
+          <div className="space-y-3 max-h-64 overflow-y-auto">
+            <div className="flex items-start gap-3 bg-red-500/10 p-3 rounded-lg border border-red-500/30">
+              <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-bold text-red-400 text-sm">Production A: AQI Critical</span>
+                  <span className="text-xs text-slate-400">14:35</span>
+                </div>
+                <p className="text-xs text-slate-300">AQI exceeded 200 → Sprinklers activated</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 bg-orange-500/10 p-3 rounded-lg border border-orange-500/30">
+              <Wind className="w-5 h-5 text-orange-400 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-bold text-orange-400 text-sm">Production A: MQ Index High</span>
+                  <span className="text-xs text-slate-400">16:20</span>
+                </div>
+                <p className="text-xs text-slate-300">MQ Index 92 → Ventilation increased</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 bg-orange-500/10 p-3 rounded-lg border border-orange-500/30">
+              <AlertTriangle className="w-5 h-5 text-orange-400 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-bold text-orange-400 text-sm">Loading Dock: Operations Paused</span>
+                  <span className="text-xs text-slate-400">18:45</span>
+                </div>
+                <p className="text-xs text-slate-300">AQI 156 → Operations temporarily halted</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 bg-green-500/10 p-3 rounded-lg border border-green-500/30">
+              <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-bold text-green-400 text-sm">Warehouse: Normal Operation</span>
+                  <span className="text-xs text-slate-400">19:10</span>
+                </div>
+                <p className="text-xs text-slate-300">All parameters within limits</p>
+              </div>
+            </div>
+          </div>
+        </motion.div>
       </div>
+
+      {/* Quick Actions Panel */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+        <div className="bg-gradient-to-br from-cyan-600/10 to-blue-600/5 rounded-xl p-5 border border-cyan-500/30">
+          <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+            <Zap className="w-5 h-5 text-cyan-400" />
+            Quick Actions
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <button className="bg-cyan-600/20 hover:bg-cyan-600/30 border border-cyan-500/40 hover:border-cyan-500/60 text-cyan-400 font-semibold py-3 px-4 rounded-lg transition-all flex items-center justify-center gap-2 text-sm">
+              <Wind className="w-4 h-4" />
+              Activate Ventilation
+            </button>
+            <button className="bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/40 hover:border-blue-500/60 text-blue-400 font-semibold py-3 px-4 rounded-lg transition-all flex items-center justify-center gap-2 text-sm">
+              <Droplet className="w-4 h-4" />
+              Start Sprinklers
+            </button>
+            <button className="bg-yellow-600/20 hover:bg-yellow-600/30 border border-yellow-500/40 hover:border-yellow-500/60 text-yellow-400 font-semibold py-3 px-4 rounded-lg transition-all flex items-center justify-center gap-2 text-sm">
+              <Bell className="w-4 h-4" />
+              Notify Safety Team
+            </button>
+            <button className="bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 hover:border-purple-500/60 text-purple-400 font-semibold py-3 px-4 rounded-lg transition-all flex items-center justify-center gap-2 text-sm">
+              <FileText className="w-4 h-4" />
+              Generate Report
+            </button>
+            <button className="bg-red-600/20 hover:bg-red-600/30 border border-red-500/40 hover:border-red-500/60 text-red-400 font-semibold py-3 px-4 rounded-lg transition-all flex items-center justify-center gap-2 text-sm">
+              <StopCircle className="w-4 h-4" />
+              Emergency Pause
+            </button>
+          </div>
+        </div>
+      </motion.div>
 
       {/* Production vs Air Quality Correlation */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
@@ -345,15 +698,14 @@ function getMockIndustryData() {
     aqiStatus: 'MODERATE',
     aqiTrend: -8,
     emissionRate: 24.5,
-    pm25: 28,
-    pm10: 112,
-    so2: 85,
-    no2: 42,
+    mq: 85,
+    humidity: 62,
+    temperature: 28,
     alerts: [
       {
         id: '1',
         title: 'Threshold Warning',
-        message: 'PM10 approaching threshold at 112 µg/m³',
+        message: 'MQ Index approaching threshold at 85 ppm',
         severity: 'warning',
         timestamp: '15 minutes ago'
       },
