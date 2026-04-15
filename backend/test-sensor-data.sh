@@ -5,7 +5,7 @@
 
 echo "========================================="
 echo "  VayuDrishti - IoT Data Simulator"
-echo "  🔥 HIGH AQI MODE (500+ for ML)"
+echo "  🔥 EXTREME AQI MODE (500-1000)"
 echo "========================================="
 echo ""
 
@@ -17,20 +17,21 @@ echo "🎯 Target: $SERVER_URL"
 echo "📱 Device: $DEVICE_ID"
 echo ""
 
-# Function to generate HIGH AQI sensor data (500+ for ML testing)
+# Function to generate EXTREME AQI sensor data (500-1000)
 generate_data() {
-    # Simulate CRITICAL smoke levels for ML FIRE/POLLUTION detection
+    # Simulate EXTREME smoke levels for AQI 500-1000
     # MQ must be 0-1023 (Arduino ADC range)
-    # Generate values from 901-1023 for varying AQI (501-602)
-    MQ=$((901 + RANDOM % 123))          # 901-1023 range (ensures AQI varies)
+    # For AQI 500-1000, we need MQ values in the upper range
+    # AQI formula: roughly (MQ/1023)*600, so for 500-1000 we need high MQ values
+    MQ=$((850 + RANDOM % 174))          # 850-1023 range (generates AQI ~500-1000)
     
     # Temperature: -10 to 60°C (DHT11 valid range)
     # Higher temps indicate FIRE
-    TEMP=$((30 + RANDOM % 31))          # 30-60 °C (warm to hot)
+    TEMP=$((35 + RANDOM % 26))          # 35-60 °C (hot to extreme)
     
     # Humidity: 0-100% (DHT11 valid range)
     # Lower humidity indicates FIRE
-    HUM=$((10 + RANDOM % 71))           # 10-80%
+    HUM=$((5 + RANDOM % 46))            # 5-50% (very low for extreme conditions)
     
     # Let backend calculate AQI from MQ value - don't send AQI
     # This ensures real-time calculation and varying values
@@ -38,7 +39,7 @@ generate_data() {
 }
 
 # Send data in loop
-echo "📊 Sending CRITICAL AQI data (500+) every 3 seconds..."
+echo "📊 Sending EXTREME AQI data (500-1000) every 3 seconds..."
 echo "   🤖 ML Classification will trigger (FIRE vs POLLUTION)"
 echo "   Press Ctrl+C to stop"
 echo ""
@@ -49,12 +50,14 @@ while true; do
     
     # Extract values for display
     MQ=$(echo $DATA | grep -o '"mq":[0-9]*' | cut -d: -f2)
-    AQI=$(echo $DATA | grep -o '"aqi":[0-9]*' | cut -d: -f2)
     TEMP=$(echo $DATA | grep -o '"temperature":[0-9]*' | cut -d: -f2)
     HUM=$(echo $DATA | grep -o '"humidity":[0-9]*' | cut -d: -f2)
-    STATUS=$(echo $DATA | grep -o '"status":"[A-Z_]*"' | cut -d'"' -f4)
     
-    echo "[$counter] Sending: MQ=$MQ, AQI=$AQI, Temp=${TEMP}°C, Hum=${HUM}%, Status=$STATUS"
+    # Calculate approximate AQI for display (MQ to AQI conversion)
+    # Formula: AQI = (MQ / 1023) * 600 (rough approximation)
+    AQI=$(awk "BEGIN {printf \"%.0f\", ($MQ / 1023) * 600}")
+    
+    echo "[$counter] Sending: MQ=$MQ, AQI=$AQI, Temp=${TEMP}°C, Hum=${HUM}%"
     
     RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST $SERVER_URL \
         -H "Content-Type: application/json" \
