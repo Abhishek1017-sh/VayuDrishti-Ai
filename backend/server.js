@@ -80,16 +80,19 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log('='.repeat(60));
-  console.log(`🚀 VayuDrishti AI Backend Server Running`);
-  console.log(`📡 Port: ${PORT}`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🤖 ML-Enabled: FIRE vs POLLUTION Detection`);
-  console.log(`⏰ Started at: ${new Date().toISOString()}`);
-  console.log('='.repeat(60));
-});
+// Start server only when running standalone.
+// Vercel imports this file as a serverless entrypoint, so it must not bind a port there.
+if (require.main === module && !process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log('='.repeat(60));
+    console.log(`🚀 VayuDrishti AI Backend Server Running`);
+    console.log(`📡 Port: ${PORT}`);
+    console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🤖 ML-Enabled: FIRE vs POLLUTION Detection`);
+    console.log(`⏰ Started at: ${new Date().toISOString()}`);
+    console.log('='.repeat(60));
+  });
+}
 
 // Handle uncaught exceptions and unhandled rejections
 process.on('uncaughtException', (error) => {
