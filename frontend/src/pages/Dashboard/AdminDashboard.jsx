@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Users, Zap, AlertTriangle, Activity, DownloadCloud, Settings, Wifi, WifiOff, Clock, Siren, Plane } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import StatCard from '../../components/Dashboard/Shared/StatCard';
-import SensorCard from '../../components/Dashboard/Shared/SensorCard';
-import AlertManager from '../../components/Dashboard/Shared/AlertManager';
-import SystemControls from '../../components/Dashboard/Shared/SystemControls';
-import SimpleTrendChart from '../../components/Dashboard/Shared/SimpleTrendChart';
+import StatCard from '../../components/dashboard/Shared/StatCard';
+import SensorCard from '../../components/dashboard/Shared/SensorCard';
+import AlertManager from '../../components/dashboard/Shared/AlertManager';
+import SystemControls from '../../components/dashboard/Shared/SystemControls';
+import SimpleTrendChart from '../../components/dashboard/Shared/SimpleTrendChart';
 import { dashboardAPI } from '../../services/api';
 
 function AdminDashboard() {

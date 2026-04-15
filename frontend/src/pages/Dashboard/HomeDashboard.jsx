@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Wind, Cloud, Droplets, Bell, Activity, Wifi, Heart, Thermometer } from 'lucide-react';
-import AQIGauge from '../../components/Dashboard/Shared/AQIGauge';
-import SimpleTrendChart from '../../components/Dashboard/Shared/SimpleTrendChart';
-import MetricCard from '../../components/Dashboard/Shared/MetricCard';
+import AQIGauge from '../../components/dashboard/Shared/AQIGauge';
+import SimpleTrendChart from '../../components/dashboard/Shared/SimpleTrendChart';
+import MetricCard from '../../components/dashboard/Shared/MetricCard';
 import DiseaseInfoModal from '../../components/Home/DiseaseInfoModal';
 import ApplianceRecommendations from '../../components/Home/ApplianceRecommendations';
 import { homeAPI } from '../../services/api';

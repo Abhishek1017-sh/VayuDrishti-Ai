@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Building2, FileText, TrendingUp, TrendingDown, AlertTriangle, BarChart3, Download, Factory, Wind, Bell, CheckCircle, Zap, Droplet, StopCircle } from 'lucide-react';
-import StatCard from '../../components/Dashboard/Shared/StatCard';
-import ComplianceIndicator from '../../components/Dashboard/Shared/ComplianceIndicator';
-import MetricCard from '../../components/Dashboard/Shared/MetricCard';
-import SimpleTrendChart from '../../components/Dashboard/Shared/SimpleTrendChart';
-import AlertManager from '../../components/Dashboard/Shared/AlertManager';
-import AQIGauge from '../../components/Dashboard/Shared/AQIGauge';
+import StatCard from '../../components/dashboard/Shared/StatCard';
+import ComplianceIndicator from '../../components/dashboard/Shared/ComplianceIndicator';
+import MetricCard from '../../components/dashboard/Shared/MetricCard';
+import SimpleTrendChart from '../../components/dashboard/Shared/SimpleTrendChart';
+import AlertManager from '../../components/dashboard/Shared/AlertManager';
+import AQIGauge from '../../components/dashboard/Shared/AQIGauge';
 import { industryAPI } from '../../services/api';
 
 function IndustryDashboard() {
